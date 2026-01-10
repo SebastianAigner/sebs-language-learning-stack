@@ -51,7 +51,7 @@ tmux send-keys -t $SESSION:0.5 "cd '$SCRIPT_DIR/jpdb-conjugation-trainer' && npm
 
 # Resize banner pane to be small
 tmux select-pane -t $SESSION:0.0
-tmux resize-pane -D 100
+tmux resize-pane -U 100
 
 # Select banner pane and attach
 tmux attach-session -t $SESSION
