@@ -31,3 +31,7 @@ cache/
 
 # Test coverage
 coverage/
+
+# Project-specific data (keep locally, don't commit)
+jpdb-review-transcriber/storage/
+tts-server/cache/
