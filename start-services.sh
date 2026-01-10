@@ -50,8 +50,7 @@ tmux split-window -v -t $SESSION:0.4
 tmux send-keys -t $SESSION:0.5 "cd '$SCRIPT_DIR/jpdb-conjugation-trainer' && npm run dev" C-m
 
 # Resize banner pane to be small (10 lines)
-tmux resize-pane -t $SESSION:0.0 -y 10
+tmux resize-pane -t $SESSION:{top} -y 10
 
 # Select banner pane and attach
-tmux select-pane -t $SESSION:0.0
 tmux attach-session -t $SESSION
