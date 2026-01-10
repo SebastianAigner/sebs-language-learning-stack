@@ -20,7 +20,8 @@ tmux new-session -d -s $SESSION -n "services"
 tmux send-keys -t $SESSION:0 "cat '$SCRIPT_DIR/banner.txt' && read" C-m
 
 # Split below banner for services
-tmux split-window -v -t $SESSION:0 -p 85
+tmux split-window -v -t $SESSION:0
+tmux resize-pane -t $SESSION:0.0 -y 10
 
 # Pane 1: brickwall (Vite)
 tmux send-keys -t $SESSION:0.1 "cd '$SCRIPT_DIR/brickwall' && npm run dev" C-m
