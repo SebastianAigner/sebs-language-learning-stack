@@ -1,0 +1,114 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Theme Variables */
+  --bg-color: #f8f9fa;
+  --text-color: #333;
+  --text-secondary: #666;
+  --text-muted: #999;
+  --container-bg: #ffffff;
+  --container-border: #ddd;
+  --input-bg: #ffffff;
+  --input-text: #000000;
+  --input-border: #ccc;
+  --button-bg: #ffffff;
+  --button-text: #666;
+  --button-border: #ccc;
+  --user-msg-bg: #e3f2fd;
+  --user-msg-border: #2196f3;
+  --assistant-msg-bg: #f5f5f5;
+  --assistant-msg-border: #4caf50;
+  --indicator-bg: #f8f9fa;
+  --indicator-border: #e9ecef;
+  --hint-bg: #f8f9fa;
+  --hint-border: #e9ecef;
+  --hint-code-bg: #e9ecef;
+  --toast-bg: #ffffff;
+  --toast-border: #ddd;
+  --toast-success-bg: #f8fff9;
+  --toast-error-bg: #fff8f8;
+  --msg-border: #f0f0f0;
+}
+
+.dark-mode {
+  --bg-color: #121212;
+  --text-color: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-muted: #808080;
+  --container-bg: #1e1e1e;
+  --container-border: #333;
+  --input-bg: #2d2d2d;
+  --input-text: #e0e0e0;
+  --input-border: #444;
+  --button-bg: #2d2d2d;
+  --button-text: #b0b0b0;
+  --button-border: #444;
+  --user-msg-bg: #1a237e;
+  --user-msg-border: #3949ab;
+  --assistant-msg-bg: #1b5e20;
+  --assistant-msg-border: #2e7d32;
+  --indicator-bg: #2d2d2d;
+  --indicator-border: #444;
+  --hint-bg: #2d2d2d;
+  --hint-border: #444;
+  --hint-code-bg: #444;
+  --toast-bg: #2d2d2d;
+  --toast-border: #444;
+  --toast-success-bg: #1b5e20;
+  --toast-error-bg: #b71c1c;
+  --msg-border: #333;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Japanese Vocabulary Trainer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header: Stats + Config -->
+  <header>
+    <div id="stats">
+      <span class="stats-label">Reviewed correctly:</span>
+      <span id="review-count">0</span>
+      <span id="streak-counter" class="hidden"></span>
+    </div>
+    <div id="config-controls">
+      <input
+        type="text"
+        id="service-url"
+        placeholder="http://localhost:3000"
+        value="http://localhost:3000"
+        title="Vocabulary service URL">
+      <button id="fetch-btn" title="Fetch new vocabulary from service">Fetch New</button>
+      <button id="shuffle-btn" title="Shuffle remaining queue">Shuffle Queue</button>
+      <button id="reverse-btn" title="Reverse remaining queue">Reverse Queue</button>
+      <button id="remove-katakana-btn" title="Remove katakana-only words from queue">Remove Katakana</button>
+      <button id="load-mistakes-btn" title="Review vocabulary with past mistakes">Review Past Mistakes (<span id="mistakes-count">0</span>)</button>
+      <button id="clear-mistakes-btn" title="Clear saved past mistakes">Clear Past Mistakes</button>
+      <button id="reset-btn" title="Clear all persisted data">Reset All Data</button>
+      <div class="config-item">
+        <label for="auto-advance-checkbox">
+          <input type="checkbox" id="auto-advance-checkbox" checked>
+          Auto-advance on correct
+        </label>
+      </div>
+      <div class="config-item">
+        <label for="tts-checkbox">
+          <input type="checkbox" id="tts-checkbox" checked>
+          TTS
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <!-- Error overlay -->
+  <div id="error-overlay" class="hidden">
+    <div class="error-content">
+      <h2>Error</h2>
+      <p id="error-message"></p>
+      <button id="retry-btn">Retry</button>
+      <button id="close-error-btn">Close</button>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="hidden">
+    <div class="loading-content">
+      <p>Loading vocabulary...</p>
+    </div>
+  </div>
+
+  <!-- Main Review Card -->
+  <main id="review-area">
+    <!-- Prompt View: Show English definition, get Japanese input -->
+    <div id="prompt-view" class="hidden">
+      <p id="english-text" class="english-definition"></p>
+      <input
+        type="text"
+        id="japanese-input"
+        placeholder="答え"
+        autocomplete="off"
+        spellcheck="false">
+    </div>
+
+    <!-- Comparison View: Show side-by-side comparison and grading -->
+    <div id="comparison-view" class="hidden">
+      <h2>Comparison</h2>
+      <div id="comparison-grid">
+        <div class="comparison-box" id="user-answer-box">
+          <h3>Your Answer</h3>
+          <p id="user-answer" class="japanese-text"></p>
+        </div>
+        <div class="comparison-box" id="correct-answer-box">
+          <h3>Correct Answer</h3>
+          <p id="correct-answer" class="japanese-text"></p>
+        </div>
+      </div>
+
+      <!-- Reading hint (shown for all answers) -->
+      <p id="comparison-reading" class="comparison-reading"></p>
+
+      <!-- Retry input (shown when answer is wrong) -->
+      <div id="retry-section" class="hidden">
+        <p class="retry-prompt">Type the correct answer to continue:</p>
+        <p id="reading-hint" class="reading-hint"></p>
+        <input
+          type="text"
+          id="retry-input"
+          placeholder="答え"
+          autocomplete="off"
+          spellcheck="false">
+        <p class="retry-hint">Press Enter when done</p>
+        <div class="retry-buttons">
+          <button id="skip-typing-btn" class="grade-btn skip-btn">Skip Typing</button>
+          <button id="retry-good-btn" class="grade-btn good-btn">Actually, I got it right (Good)</button>
+        </div>
+      </div>
+
+      <!-- Grading controls (shown when answer is correct) -->
+      <div id="grading-controls">
+        <button id="good-btn" class="grade-btn good-btn">Good</button>
+        <button id="not-good-btn" class="grade-btn not-good-btn" style="display: none;">Not Good</button>
+        <p class="hint">Press spacebar for "Good"</p>
+      </div>
+    </div>
+
+    <!-- Completion View: Show when queue is exhausted -->
+    <div id="completion-view" class="hidden">
+      <h2>Session Complete!</h2>
+      <p class="completion-message">
+        You reviewed <span id="completion-count">0</span> word(s) correctly on the first try.
+      </p>
+      <button id="new-session-btn">Start New Session</button>
+    </div>
+  </main>
+
+  <!-- Toast notification container -->
+  <div id="toast-container"></div>
+
+  <!-- Debug Panels (Collapsed by default) -->
+  <aside id="debug-panels">
+    <details id="queue-debug">
+      <summary>Queue</summary>
+      <div id="queue-list-container">
+        <p class="debug-empty">Queue is empty</p>
+        <ol id="queue-list" class="debug-list"></ol>
+      </div>
+    </details>
+
+    <details id="most-repeated-debug">
+      <summary>Most Repeated</summary>
+      <div id="most-repeated-list-container">
+        <p class="debug-empty">No repetitions yet</p>
+        <ol id="most-repeated-list" class="debug-list"></ol>
+      </div>
+    </details>
+
+    <details id="completed-debug">
+      <summary>Reviewed Correctly</summary>
+      <div id="completed-list-container">
+        <p class="debug-empty">No items reviewed correctly yet</p>
+        <ol id="completed-list" class="debug-list"></ol>
+      </div>
+    </details>
+  </aside>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

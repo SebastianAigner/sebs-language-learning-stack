@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TTS Service Management</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #2d3748;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #718096;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      color: #2d3748;
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #48bb78;
+      margin-right: 8px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .stat-item {
+      background: #f7fafc;
+      padding: 15px;
+      border-radius: 6px;
+      border-left: 3px solid #667eea;
+    }
+
+    .stat-label {
+      color: #718096;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      color: #2d3748;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    button.primary {
+      background: #667eea;
+      color: white;
+    }
+
+    button.primary:hover {
+      background: #5a67d8;
+    }
+
+    button.secondary {
+      background: #718096;
+      color: white;
+    }
+
+    button.secondary:hover {
+      background: #4a5568;
+    }
+
+    button.danger {
+      background: #f56565;
+      color: white;
+    }
+
+    button.danger:hover {
+      background: #e53e3e;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 16px;
+      margin-bottom: 10px;
+      font-family: inherit;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .cache-item {
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .cache-item:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .cache-item-info {
+      flex: 1;
+    }
+
+    .cache-item-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 5px;
+    }
+
+    .cache-item-context {
+      font-size: 14px;
+      color: #667eea;
+      margin-bottom: 5px;
+      font-style: italic;
+    }
+
+    .cache-item-meta {
+      font-size: 13px;
+      color: #718096;
+    }
+
+    .cache-item-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-button {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      border-radius: 6px;
+    }
+
+    .cache-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #718096;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #718096;
+    }
+
+    .success-message {
+      background: #c6f6d5;
+      color: #22543d;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      display: none;
+    }
+
+    .error-message {
+      background: #fed7d7;
+      color: #742a2a;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cache-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .cache-item-actions {
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Japanese TTS Service</h1>
+    <p class="subtitle">
+      <span class="status-indicator"></span>
+      Running on port 5065
+    </p>
+
+    <div class="success-message" id="success-message"></div>
+    <div class="error-message" id="error-message"></div>
+
+    <!-- Cache Statistics -->
+    <div class="card">
+      <h2>Cache Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-label">Total Files</div>
+          <div class="stat-value" id="total-files">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Total Size</div>
+          <div class="stat-value" id="total-size">-</div>
+        </div>
+      </div>
+      <div class="button-group">
+        <button class="secondary" onclick="refreshStats()">🔄 Refresh</button>
+        <button class="danger" onclick="clearCache()">🗑️ Clear Cache</button>
+      </div>
+    </div>
+
+    <!-- Test TTS -->
+    <div class="card">
+      <h2>Test TTS Generation</h2>
+      <input
+        type="text"
+        id="test-context-input"
+        placeholder="Context / Previous text (optional, e.g., 食べる)"
+      />
+      <input
+        type="text"
+        id="test-input"
+        placeholder="Enter Japanese text (e.g., 食べます)"
+        value="食べる"
+      />
+      <div id="sending-as-preview" style="font-size: 13px; color: #718096; margin-bottom: 10px; display: none;">
+        <span style="color: #667eea;">Sending as:</span> <span id="sending-as-text"></span>
+      </div>
+      <button class="primary" onclick="testTTS()">🔊 Generate & Play</button>
+    </div>
+
+    <!-- Cached Items -->
+    <div class="card">
+      <h2>Cached Items</h2>
+      <div class="cache-list" id="cache-list">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Helper: Format bytes to human-readable size
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // Helper: Format date to relative time
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffSecs < 60) return `${diffSecs} sec${diffSecs !== 1 ? 's' : ''} ago`;
+      if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    }
+
+    // Show success message
+    function showSuccess(message) {
+      const el = document.getElementById('success-message');
+      el.textContent = message;
+      el.style.display = 'block';
+      setTimeout(() => {
+        el.style.display = 'none';
+      }, 3000);
+    }
+
+    // Show error message
+    function showError(message) {
+      const el = document.getElementById('error-message');
+      el.textContent = message;
+      el.style.display = 'block';
+      setTimeout(() => {
+        el.style.display = 'none';
+      }, 5000);
+    }
+
+    // Refresh cache statistics
+    async function refreshStats() {
+      try {
+        const response = await fetch('/api/cache');
+        const data = await response.json();
+
+        // Update stats
+        document.getElementById('total-files').textContent = data.totalFiles;
+        document.getElementById('total-size').textContent = formatBytes(data.totalSize);
+
+        // Update cache list
+        const cacheList = document.getElementById('cache-list');
+
+        if (data.files.length === 0) {
+          cacheList.innerHTML = '<div class="empty-state">No cached items yet. Generate some TTS to see them here!</div>';
+          return;
+        }
+
+        cacheList.innerHTML = data.files.map(file => `
+          <div class="cache-item">
+            <div class="cache-item-info">
+              <div class="cache-item-text">${escapeHtml(file.text)}</div>
+              ${file.previousText ? `<div class="cache-item-context">Context: ${escapeHtml(file.previousText)}</div>` : ''}
+              <div class="cache-item-meta">
+                ${formatBytes(file.size)} • Created ${formatDate(file.created)}
+              </div>
+            </div>
+            <div class="cache-item-actions">
+              <button class="icon-button secondary" onclick="downloadItem('${file.hash}')" title="Download">
+                📥
+              </button>
+              <button class="icon-button primary" onclick="playItem('${file.hash}')" title="Play">
+                🔊
+              </button>
+              <button class="icon-button danger" onclick="deleteItem('${file.hash}')" title="Delete">
+                ❌
+              </button>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (error) {
+        console.error('Failed to refresh stats:', error);
+        showError('Failed to load cache statistics');
+      }
+    }
+
+    // Clear all cache
+    async function clearCache() {
+      if (!confirm('Are you sure you want to clear all cached files?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/cache/clear', {
+          method: 'POST'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          showSuccess(`Deleted ${data.deleted} cached file${data.deleted !== 1 ? 's' : ''}`);
+          await refreshStats();
+        } else {
+          showError('Failed to clear cache');
+        }
+      } catch (error) {
+        console.error('Failed to clear cache:', error);
+        showError('Failed to clear cache');
+      }
+    }
+
+    // Test TTS generation
+    async function testTTS() {
+      const input = document.getElementById('test-input');
+      const contextInput = document.getElementById('test-context-input');
+      const rawText = input.value.trim();
+      const text = stripAnkiCloze(rawText);
+      const previousText = stripAnkiCloze(contextInput.value.trim());
+
+      if (!text) {
+        showError('Please enter some text');
+        return;
+      }
+
+      try {
+        // Disable button during generation
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = '⏳ Generating...';
+
+        const requestBody = { text };
+        if (previousText) {
+          requestBody.previous_text = previousText;
+        }
+
+        const response = await fetch('/api/test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showSuccess(data.cached ? 'Playing cached audio' : 'Generated and playing new TTS');
+
+          // Play the audio
+          const audio = new Audio(data.url);
+          audio.volume = 0.7;
+          await audio.play();
+
+          // Refresh stats to show new item
+          await refreshStats();
+        } else {
+          showError('Failed to generate TTS');
+        }
+
+        btn.disabled = false;
+        btn.textContent = '🔊 Generate & Play';
+
+      } catch (error) {
+        console.error('Test failed:', error);
+        showError('Failed to generate TTS: ' + error.message);
+        event.target.disabled = false;
+        event.target.textContent = '🔊 Generate & Play';
+      }
+    }
+
+    // Play cached item by hash
+    function playItem(hash) {
+      try {
+        const url = `/api/cache/audio/${hash}`;
+        const audio = new Audio(url);
+        audio.volume = 0.7;
+        audio.play().catch(error => {
+          console.error('Failed to play audio:', error);
+          showError('Failed to play audio');
+        });
+      } catch (error) {
+        console.error('Failed to play audio:', error);
+        showError('Failed to play audio');
+      }
+    }
+
+    // Download cached item by hash
+    function downloadItem(hash) {
+      try {
+        window.location.href = `/api/cache/audio/${hash}?download=true`;
+      } catch (error) {
+        console.error('Failed to download audio:', error);
+        showError('Failed to download audio');
+      }
+    }
+
+    // Delete cached item
+    async function deleteItem(hash) {
+      if (!confirm('Delete this cached item?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/cache/${hash}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showSuccess('Deleted cached file');
+          await refreshStats();
+        } else {
+          showError('Failed to delete file');
+        }
+      } catch (error) {
+        console.error('Failed to delete item:', error);
+        showError('Failed to delete file');
+      }
+    }
+
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Strip Anki cloze syntax: {{c1::content}} -> content
+    function stripAnkiCloze(text) {
+      return text.replace(/\{\{c\d+::([^}]+)\}\}/g, '$1');
+    }
+
+    // Update the "Sending as:" preview
+    function updateSendingAsPreview() {
+      const input = document.getElementById('test-input');
+      const preview = document.getElementById('sending-as-preview');
+      const previewText = document.getElementById('sending-as-text');
+
+      const original = input.value;
+      const stripped = stripAnkiCloze(original);
+
+      if (stripped !== original) {
+        previewText.textContent = stripped;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    // Auto-refresh on Enter key in test input
+    document.getElementById('test-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        testTTS();
+      }
+    });
+
+    // Update preview on input change
+    document.getElementById('test-input').addEventListener('input', updateSendingAsPreview);
+
+    // Load stats on page load
+    refreshStats();
+
+    // Initial preview update
+    updateSendingAsPreview();
+  </script>
+</body>
+</html>

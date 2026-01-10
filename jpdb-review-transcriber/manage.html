@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>JPDB Review Manager</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            max-width: 1200px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #f0f0f0;
+        }
+        button {
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+        .timestamp {
+            white-space: nowrap;
+        }
+        .content {
+            max-width: 600px;
+            word-wrap: break-word;
+        }
+        .json-content {
+            font-family: monospace;
+            white-space: pre;
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        .count {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>JPDB Review Manager</h1>
+    <div class="count" id="count">Loading...</div>
+    <button onclick="loadEntries()">Refresh</button>
+    <button onclick="deleteAllEntries()" style="background: #ff6b6b; color: white;">Delete All</button>
+    <table id="entriesTable">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Content</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="entriesBody">
+        </tbody>
+    </table>
+
+    <script>
+        async function loadEntries() {
+            try {
+                const response = await fetch('/all');
+                const data = await response.json();
+
+                document.getElementById('count').textContent = `Total entries: ${data.count}`;
+
+                const tbody = document.getElementById('entriesBody');
+                tbody.innerHTML = '';
+
+                data.entries.forEach(entry => {
+                    const row = document.createElement('tr');
+
+                    const timestampCell = document.createElement('td');
+                    timestampCell.className = 'timestamp';
+                    timestampCell.textContent = entry.timestamp;
+
+                    const contentCell = document.createElement('td');
+                    contentCell.className = 'content';
+
+                    try {
+                        const content = JSON.parse(entry.content);
+                        const jsonDiv = document.createElement('div');
+                        jsonDiv.className = 'json-content';
+                        jsonDiv.textContent = JSON.stringify(content, null, 2);
+                        contentCell.appendChild(jsonDiv);
+                    } catch {
+                        contentCell.textContent = entry.content.substring(0, 100) + '...';
+                    }
+
+                    const actionCell = document.createElement('td');
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.onclick = () => deleteEntry(entry.timestamp);
+                    actionCell.appendChild(deleteBtn);
+
+                    row.appendChild(timestampCell);
+                    row.appendChild(contentCell);
+                    row.appendChild(actionCell);
+
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                alert('Error loading entries: ' + error.message);
+            }
+        }
+
+        async function deleteEntry(timestamp) {
+            if (!confirm('Delete this entry?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/delete/${encodeURIComponent(timestamp)}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    loadEntries();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting entry: ' + error.message);
+            }
+        }
+
+        async function deleteAllEntries() {
+            if (!confirm('Are you sure you want to delete ALL entries? This cannot be undone!')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/delete/all', {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Deleted ${data.deletedCount} entries`);
+                    loadEntries();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting all entries: ' + error.message);
+            }
+        }
+
+        loadEntries();
+    </script>
+</body>
+</html>
