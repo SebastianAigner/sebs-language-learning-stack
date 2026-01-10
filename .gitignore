@@ -21,6 +21,11 @@ build/
 .env.local
 .env.*.local
 
+# API keys
+azure.txt
+elevenlabs.txt
+openrouter.txt
+
 # Logs
 *.log
 npm-debug.log*
