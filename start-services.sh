@@ -34,6 +34,10 @@ tmux send-keys -t $SESSION:0 "cd jpdb-word-production-trainer && node server.js"
 tmux split-window -v -t $SESSION:0.2
 tmux send-keys -t $SESSION:0 "cd jpdb-conjugation-trainer && npm run dev" C-m
 
+# Pane 6: Help message
+tmux split-window -v -t $SESSION:0.0
+tmux send-keys -t $SESSION:0 "echo 'Want to leave? Hit Ctrl-B :kill-session' && read" C-m
+
 # Select the first pane and attach
 tmux select-pane -t $SESSION:0.0
 tmux attach-session -t $SESSION
