@@ -21,7 +21,6 @@ tmux send-keys -t $SESSION:0 "cat '$SCRIPT_DIR/banner.txt' && read" C-m
 
 # Split below banner for services
 tmux split-window -v -t $SESSION:0
-tmux resize-pane -t $SESSION:0.0 -y 10
 
 # Pane 1: brickwall (Vite)
 tmux send-keys -t $SESSION:0.1 "cd '$SCRIPT_DIR/brickwall' && npm run dev" C-m
@@ -49,6 +48,9 @@ tmux split-window -v -t $SESSION:0.4
 
 # Pane 5: jpdb-conjugation-trainer
 tmux send-keys -t $SESSION:0.5 "cd '$SCRIPT_DIR/jpdb-conjugation-trainer' && npm run dev" C-m
+
+# Resize banner pane to be small (10 lines)
+tmux resize-pane -t $SESSION:0.0 -y 10
 
 # Select banner pane and attach
 tmux select-pane -t $SESSION:0.0
