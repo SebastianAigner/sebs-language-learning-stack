@@ -1,0 +1,17 @@
+node_modules
+dist
+.DS_Store
+*.log
+.vite
+OpenRouter.txt
+openrouter.txt
+elevenlabs.txt
+azure.txt
+
+# TTS Service
+tts-service/node_modules
+tts-service/cache/*.mp3
+tts-service/cache/*.json
+!tts-service/cache/.gitkeep
+tts-service/dist
+tts-service/coverage

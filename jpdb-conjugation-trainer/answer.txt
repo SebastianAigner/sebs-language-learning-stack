@@ -1,0 +1,38 @@
+# Backend Status for Japanese Conjugation Trainer
+
+## Answer: You NEED a backend
+
+The application is split into TWO parts:
+
+### 1. Backend Service (Required)
+- **Purpose**: Fetches daily vocabulary from jpdb.io API
+- **Port**: 3000 (configurable via Settings > API Base URL)
+- **Endpoint**: GET /today
+- **Returns**: JSON with daily vocabulary entries
+
+Without this backend, the "Fetch Vocabulary" button will fail.
+
+### 2. Frontend App (This React App)
+- **Port**: 5173/5174 (Vite dev server)
+- **Runs in**: Browser
+- **Dependencies**: 
+  - Backend service for vocabulary data
+  - OpenRouter API for LLM grading (via openrouter.txt API key)
+
+## Current Setup
+
+The frontend calls:
+```
+fetch(`${apiBaseUrl}/today`)  // Default: http://localhost:3000/today
+```
+
+If you don't have the backend running, you'll see:
+"Failed to fetch vocabulary. Please check that the service is running on localhost:3000."
+
+## To Run
+
+1. Start backend on port 3000
+2. Start frontend: `npm run dev`
+3. Open http://localhost:5174
+
+The API Base URL is now configurable in Settings!

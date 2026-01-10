@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init:*)",
+      "Bash(python3:*)",
+      "Bash(npm install)",
+      "Bash(npm run type-check:*)",
+      "Bash(cat:*)",
+      "Bash(npm run lint)",
+      "Bash(npm test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(lsof:*)",
+      "Bash(for port in 3002 3003 5175 5176 5177)",
+      "Bash(do nc -z localhost $port)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "WebFetch(domain:streamdown.ai)",
+      "Bash(npm install:*)",
+      "Bash(open:*)",
+      "Skill(aside)",
+      "Skill(notify-in-sidebar)",
+      "Bash(node -e:*)",
+      "Bash(subl:*)",
+      "Bash(find:*)",
+      "Bash(npm run test:*)",
+      "Bash(xargs kill -9)",
+      "Bash(git reset:*)",
+      "Bash(git restore:*)",
+      "Bash(xargs cat:*)",
+      "Bash(npm run lint:*)",
+      "Bash(grep:*)",
+      "Bash(npm run dev:all:*)"
+    ]
+  }
+}

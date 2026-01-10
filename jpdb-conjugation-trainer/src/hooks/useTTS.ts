@@ -1,0 +1,89 @@
+import { useState, useCallback } from 'react';
+import { useAudio } from '../lib/audio-unlock';
+
+interface UseTTSOptions {
+  ttsServiceUrl: string;
+}
+
+interface TTSError {
+  message: string;
+  timestamp: number;
+}
+
+export function useTTS({ ttsServiceUrl }: UseTTSOptions) {
+  const [ttsError, setTtsError] = useState<TTSError | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const { playStreamingAudio } = useAudio();
+
+  const clearError = useCallback(() => {
+    setTtsError(null);
+  }, []);
+
+  const showError = useCallback((message: string) => {
+    setTtsError({ message, timestamp: Date.now() });
+    setTimeout(() => setTtsError(null), 3000);
+  }, []);
+
+  const playTTS = useCallback(async (text: string, previousText?: string) => {
+    try {
+      let url = `${ttsServiceUrl}/tts?text=${encodeURIComponent(text)}`;
+      if (previousText) {
+        url += `&previous_text=${encodeURIComponent(previousText)}`;
+      }
+      await playStreamingAudio(url, { volume: 0.7 });
+    } catch (error) {
+      console.warn('TTS playback failed:', error);
+      showError('Failed to play pronunciation audio');
+      throw error;
+    }
+  }, [ttsServiceUrl, playStreamingAudio, showError]);
+
+  const regenerateTTS = useCallback(async (text: string, previousText?: string) => {
+    setIsRegenerating(true);
+    try {
+      const requestBody: { text: string; previous_text?: string } = { text };
+      if (previousText) {
+        requestBody.previous_text = previousText;
+      }
+
+      const response = await fetch(`${ttsServiceUrl}/api/regenerate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to regenerate TTS');
+      }
+
+      const data = await response.json();
+      const audioUrl = `${ttsServiceUrl}${data.url}`;
+      await playStreamingAudio(audioUrl, { volume: 0.7 });
+    } catch (error) {
+      console.warn('TTS regeneration failed:', error);
+      showError('Failed to regenerate audio');
+      throw error;
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [ttsServiceUrl, playStreamingAudio, showError]);
+
+  const replayTTS = useCallback(async (text: string, previousText?: string) => {
+    try {
+      await playTTS(text, previousText);
+    } catch (error) {
+      // Error already handled by playTTS
+    }
+  }, [playTTS]);
+
+  return {
+    ttsError,
+    isRegenerating,
+    playTTS,
+    regenerateTTS,
+    replayTTS,
+    clearError
+  };
+}
