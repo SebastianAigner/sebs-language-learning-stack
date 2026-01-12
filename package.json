@@ -1,0 +1,22 @@
+{
+  "name": "sebs-language-learning-stack",
+  "version": "1.0.0",
+  "description": "A collection of tools and services for Japanese language learning",
+  "private": true,
+  "workspaces": [
+    "brickwall",
+    "jpdb-conjugation-trainer",
+    "jpdb-review-transcriber",
+    "jpdb-word-production-trainer",
+    "tts-server"
+  ],
+  "scripts": {
+    "start": "./start-services.sh",
+    "install:all": "npm install",
+    "dev:brickwall": "npm run dev -w brickwall",
+    "dev:conjugation": "npm run dev -w jpdb-conjugation-trainer",
+    "dev:transcriber": "npm run dev -w jpdb-review-transcriber",
+    "dev:word-production": "npm run start -w jpdb-word-production-trainer",
+    "dev:tts": "npm run dev -w tts-server"
+  }
+}

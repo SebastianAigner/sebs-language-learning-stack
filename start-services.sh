@@ -35,7 +35,7 @@ tmux send-keys -t $SESSION:0.2 "cd '$SCRIPT_DIR/jpdb-review-transcriber' && npm 
 tmux split-window -v -t $SESSION:0.1
 
 # Pane 3: jpdb-word-production-trainer
-tmux send-keys -t $SESSION:0.2 "cd '$SCRIPT_DIR/jpdb-word-production-trainer' && node server.js" C-m
+tmux send-keys -t $SESSION:0.3 "cd '$SCRIPT_DIR/jpdb-word-production-trainer' && npm start" C-m
 
 # Split pane 3 horizontally
 tmux split-window -h -t $SESSION:0.3
