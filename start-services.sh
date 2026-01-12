@@ -38,7 +38,7 @@ PANE_TRANSCRIBER=$(tmux split-window -h -t $PANE_BRICKWALL -P -F "#{pane_id}")
 tmux send-keys -t $PANE_TRANSCRIBER "cd '$SCRIPT_DIR/jpdb-review-transcriber' && npm run dev" C-m
 
 # Pane 3: jpdb-word-production-trainer
-PANE_WORD_PROD=$(tmux split-window -v -t $PANE_BRICKWALL -P -F "#{pane_id}")
+PANE_WORD_PROD=$(tmux split-window -h -t $PANE_TRANSCRIBER -P -F "#{pane_id}")
 tmux send-keys -t $PANE_WORD_PROD "cd '$SCRIPT_DIR/jpdb-word-production-trainer' && npm start" C-m
 
 # Pane 4: tts-server
@@ -47,12 +47,13 @@ tmux send-keys -t $PANE_TTS "cd '$SCRIPT_DIR/tts-server' && npm run dev" C-m
 
 # Pane 5: jpdb-conjugation-trainer
 CONJUGATION_PORT=${CONJUGATION_PORT:-5174}
-PANE_CONJUGATION=$(tmux split-window -v -t $PANE_TTS -P -F "#{pane_id}")
+PANE_CONJUGATION=$(tmux split-window -h -t $PANE_TTS -P -F "#{pane_id}")
 tmux send-keys -t $PANE_CONJUGATION "cd '$SCRIPT_DIR/jpdb-conjugation-trainer' && npm run dev -- --port $CONJUGATION_PORT" C-m
 
-# Resize banner pane to be small
-tmux select-pane -t $SESSION:0.0
-tmux resize-pane -U 100
+# Final layout adjustments
+# Use main-horizontal to keep banner on top and others side-by-side below
+tmux set-window-option -t $SESSION:0 main-pane-height 3
+tmux select-layout -t $SESSION:0 main-horizontal
 
 # Select banner pane and attach
 tmux attach-session -t $SESSION
