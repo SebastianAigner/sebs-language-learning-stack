@@ -18,10 +18,8 @@ Microservice for generating Japanese text-to-speech using ElevenLabs API with in
 
 ## Setup
 
-1. **Create API key file** in the project root:
-   ```bash
-   echo "your-elevenlabs-api-key" > ../elevenlabs.txt
-   ```
+1. **Configure Environment**:
+   This service uses the centralized `.env` file in the project root. Ensure `ELEVENLABS_API_KEY` and/or `AZURE_API_KEY` are set there.
 
 2. **Install dependencies**:
    ```bash
@@ -241,13 +239,9 @@ kill -9 $(lsof -ti:5065)
 ```
 
 ### API key not found
-```bash
-# Verify file exists and contains key
-cat ../elevenlabs.txt
-
-# Check file path in server.js matches
-# Default: join(__dirname, '../elevenlabs.txt')
-```
+Verify that your API keys are correctly set in the `.env` file in the project root.
+- `ELEVENLABS_API_KEY`
+- `AZURE_API_KEY`
 
 ### CORS errors in browser
 The service enables CORS for all origins. If you still see errors:

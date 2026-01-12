@@ -28,7 +28,7 @@ This is a spaced repetition application for practicing Japanese verb and adjecti
 - `src/grader.ts` - OpenRouter integration with streaming support
 - `src/api.ts` - JPDB API client
 - `src/persistence.ts` - LocalStorage management
-- `openrouter.txt` - API key (gitignored)
+- `.env` - Centralized environment configuration (in project root)
 
 ## Code Patterns
 - Use TypeScript strict mode
@@ -45,7 +45,7 @@ This is a spaced repetition application for practicing Japanese verb and adjecti
 
 ## Constraints
 - Must maintain compatibility with JPDB API at localhost:3000
-- OpenRouter API key required for grading functionality
+- OpenRouter API key required (via `.env`) for grading functionality
 - Support 17 conjugation forms (casual/polite variants)
 - Maintain backward compatibility with localStorage schema
 

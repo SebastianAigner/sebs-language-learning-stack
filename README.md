@@ -53,11 +53,18 @@ npm start
 
 ## 🔑 Configuration
 
-Several services require API keys. These are expected to be in the following files in the root directory (though you should be careful not to commit them):
+The stack is configured using a centralized `.env` file in the root directory.
 
-- `elevenlabs.txt`
-- `azure.txt`
-- `openrouter.txt`
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Open `.env` and fill in your API keys:
+   - `ELEVENLABS_API_KEY`: Your ElevenLabs API key.
+   - `AZURE_API_KEY`: Your Azure Speech API key.
+   - `OPENROUTER_API_KEY`: Your OpenRouter API key.
+
+*Note: Be careful not to commit `.env` containing secrets. It is already included in `.gitignore`.*
 
 ## ⌨️ Shortcuts
 

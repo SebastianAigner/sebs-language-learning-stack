@@ -1,15 +1,21 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { gradeAnswerStreaming } from './grader';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import dotenv from 'dotenv';
+
+// Load environment variables from project root
+dotenv.config({ path: join(__dirname, '../../.env') });
 
 describe('OpenRouter Integration', () => {
   let apiKey: string;
 
   beforeAll(() => {
-    try {
-      apiKey = readFileSync('openrouter.txt', 'utf-8').trim();
-    } catch (error) {
-      console.warn('Warning: openrouter.txt not found. Integration tests will be skipped.');
+    // Try environment variable first (should be loaded via dotenv in this test)
+    apiKey = process.env.OPENROUTER_API_KEY || '';
+
+    if (!apiKey) {
+      console.warn('Warning: OPENROUTER_API_KEY not found in environment. Integration tests will be skipped.');
     }
   });
 

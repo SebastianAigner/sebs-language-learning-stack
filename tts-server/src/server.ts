@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlink
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
+import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,27 +17,23 @@ interface Config {
   // ElevenLabs settings
   voiceId: string;
   model: string;
-  elevenLabsKeyPath: string;
   // Azure settings
   azureRegion: string;
   azureVoice: string;
-  azureKeyPath: string;
   // Common settings
   cacheDir: string;
   maxTextLength: number;
 }
 
 const CONFIG: Config = {
-  port: Number(process.env.PORT) || 5065,
+  port: Number(process.env.TTS_SERVER_PORT || process.env.PORT) || 5065,
   provider: (process.env.TTS_PROVIDER as 'elevenlabs' | 'azure') || 'azure',
   // ElevenLabs settings
   voiceId: process.env.VOICE_ID || '3JDquces8E8bkmvbh6Bc',
   model: process.env.MODEL || 'eleven_flash_v2_5',
-  elevenLabsKeyPath: join(__dirname, '../../elevenlabs.txt'),
   // Azure settings
   azureRegion: process.env.AZURE_REGION || 'swedencentral',
   azureVoice: process.env.AZURE_VOICE || 'ja-JP-Nanami:DragonHDLatestNeural',
-  azureKeyPath: join(__dirname, '../../azure.txt'),
   // Common settings
   cacheDir: join(__dirname, '../cache'),
   maxTextLength: 500
@@ -82,27 +79,25 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Load API keys based on provider
-let ELEVENLABS_API_KEY: string = '';
-let AZURE_API_KEY: string = '';
+// Load API keys
+let ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY || '';
+let AZURE_API_KEY: string = process.env.AZURE_API_KEY || '';
 
 if (CONFIG.provider === 'elevenlabs') {
-  try {
-    ELEVENLABS_API_KEY = readFileSync(CONFIG.elevenLabsKeyPath, 'utf-8').trim();
-    console.log('✓ Loaded ElevenLabs API key');
-  } catch (error) {
-    console.error('✗ Failed to load ElevenLabs API key from', CONFIG.elevenLabsKeyPath);
-    console.error('  Please create elevenlabs.txt in the project root');
+  if (!ELEVENLABS_API_KEY) {
+    console.error('✗ ELEVENLABS_API_KEY not found in environment');
+    console.error('  Please set ELEVENLABS_API_KEY in .env in the project root');
     process.exit(1);
+  } else {
+    console.log('✓ Loaded ElevenLabs API key from environment');
   }
 } else if (CONFIG.provider === 'azure') {
-  try {
-    AZURE_API_KEY = readFileSync(CONFIG.azureKeyPath, 'utf-8').trim();
-    console.log('✓ Loaded Azure Speech API key');
-  } catch (error) {
-    console.error('✗ Failed to load Azure API key from', CONFIG.azureKeyPath);
-    console.error('  Please create azure.txt in the project root');
+  if (!AZURE_API_KEY) {
+    console.error('✗ AZURE_API_KEY not found in environment');
+    console.error('  Please set AZURE_API_KEY in .env in the project root');
     process.exit(1);
+  } else {
+    console.log('✓ Loaded Azure Speech API key from environment');
   }
 }
 

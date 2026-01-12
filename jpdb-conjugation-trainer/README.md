@@ -36,16 +36,14 @@ An application for practicing Japanese verb and adjective conjugations (ichidan/
    npm install
    ```
 
-2. Create `openrouter.txt` in the project root with your OpenRouter API key:
-   ```bash
-   echo "your-api-key-here" > openrouter.txt
-   ```
+2. Configuration:
+   The application uses the centralized `.env` file in the project root. Ensure `OPENROUTER_API_KEY` is set there.
 
 3. Ensure your JPDB review service is running on port 3000
 
 ## Development
 
-Start the development server (runs on port 3001):
+Start the development server:
 ```bash
 npm run dev
 ```

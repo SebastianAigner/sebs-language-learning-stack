@@ -7,7 +7,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.WORD_PRODUCTION_PORT || process.env.PORT || 8080;
 
 // MIME types for common file extensions
 const MIME_TYPES = {

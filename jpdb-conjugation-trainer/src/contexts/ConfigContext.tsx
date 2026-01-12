@@ -136,24 +136,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   // Load API key on mount
   useEffect(() => {
     const loadApiKey = async () => {
-      try {
-        const response = await fetch('/openrouter.txt');
-        if (!response.ok) throw new Error('Failed to load openrouter.txt');
-        const key = (await response.text()).trim();
-        updateApiKey(key);
-      } catch (error) {
-        console.error('Failed to load API key:', error);
-        showNotification(
-          'error',
-          'Failed to load OpenRouter API key. Please ensure openrouter.txt exists in the project root.',
-          10000,
-          error instanceof Error ? error.stack : undefined
-        );
+      // Use environment variable (defined in vite.config.ts)
+      if (process.env.OPENROUTER_API_KEY) {
+        updateApiKey(process.env.OPENROUTER_API_KEY);
       }
     };
 
     void loadApiKey();
-  }, [updateApiKey, showNotification]);
+  }, [updateApiKey]);
 
   const value: ConfigContextValue = {
     config,
