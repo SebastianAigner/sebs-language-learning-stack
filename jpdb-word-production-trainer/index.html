@@ -21,13 +21,13 @@
         placeholder="http://localhost:3000"
         value="http://localhost:3000"
         title="Vocabulary service URL">
-      <button id="fetch-btn" title="Fetch new vocabulary from service">Fetch New</button>
-      <button id="shuffle-btn" title="Shuffle remaining queue">Shuffle Queue</button>
-      <button id="reverse-btn" title="Reverse remaining queue">Reverse Queue</button>
-      <button id="remove-katakana-btn" title="Remove katakana-only words from queue">Remove Katakana</button>
-      <button id="load-mistakes-btn" title="Review vocabulary with past mistakes">Review Past Mistakes (<span id="mistakes-count">0</span>)</button>
-      <button id="clear-mistakes-btn" title="Clear saved past mistakes">Clear Past Mistakes</button>
-      <button id="reset-btn" title="Clear all persisted data">Reset All Data</button>
+      <button id="fetch-btn" class="btn-primary" title="Fetch new vocabulary from service">Fetch New</button>
+      <button id="shuffle-btn" class="btn-secondary" title="Shuffle remaining queue">Shuffle Queue</button>
+      <button id="reverse-btn" class="btn-secondary" title="Reverse remaining queue">Reverse Queue</button>
+      <button id="remove-katakana-btn" class="btn-secondary" title="Remove katakana-only words from queue">Remove Katakana</button>
+      <button id="load-mistakes-btn" class="btn-warning" title="Review vocabulary with past mistakes">Review Past Mistakes (<span id="mistakes-count">0</span>)</button>
+      <button id="clear-mistakes-btn" class="btn-orange" title="Clear saved past mistakes">Clear Past Mistakes</button>
+      <button id="reset-btn" class="btn-danger" title="Clear all persisted data">Reset All Data</button>
       <div class="config-item">
         <label for="auto-advance-checkbox">
           <input type="checkbox" id="auto-advance-checkbox" checked>
@@ -48,8 +48,8 @@
     <div class="error-content">
       <h2>Error</h2>
       <p id="error-message"></p>
-      <button id="retry-btn">Retry</button>
-      <button id="close-error-btn">Close</button>
+      <button id="retry-btn" class="btn-primary">Retry</button>
+      <button id="close-error-btn" class="btn-gray">Close</button>
     </div>
   </div>
 
@@ -121,7 +121,7 @@
       <p class="completion-message">
         You reviewed <span id="completion-count">0</span> word(s) correctly on the first try.
       </p>
-      <button id="new-session-btn">Start New Session</button>
+      <button id="new-session-btn" class="btn-primary">Start New Session</button>
     </div>
   </main>
 

@@ -65,89 +65,81 @@ header {
   width: 200px;
 }
 
-#fetch-btn {
+/* Base button style */
+button {
   padding: 8px 16px;
-  background-color: #3b82f6;
-  color: white;
   border: none;
   border-radius: 4px;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+  font-family: inherit;
 }
 
-#fetch-btn:hover {
+button:active {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  background-color: #d1d5db !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
   background-color: #2563eb;
 }
 
-#shuffle-btn {
-  padding: 8px 16px;
+.btn-secondary {
   background-color: #8b5cf6;
   color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
 }
 
-#shuffle-btn:hover {
+.btn-secondary:hover {
   background-color: #7c3aed;
 }
 
-#load-mistakes-btn {
-  padding: 8px 16px;
+.btn-warning {
   background-color: #f59e0b;
   color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
 }
 
-#load-mistakes-btn:hover {
+.btn-warning:hover {
   background-color: #d97706;
 }
 
-#load-mistakes-btn:disabled {
-  background-color: #d1d5db;
-  color: #9ca3af;
-  cursor: not-allowed;
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
 }
 
-#load-mistakes-btn:disabled:hover {
-  background-color: #d1d5db;
+.btn-danger:hover {
+  background-color: #dc2626;
 }
 
-#clear-mistakes-btn {
-  padding: 8px 16px;
+.btn-orange {
   background-color: #f97316;
   color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
 }
 
-#clear-mistakes-btn:hover {
+.btn-orange:hover {
   background-color: #ea580c;
 }
 
-#reset-btn {
-  padding: 8px 16px;
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
+.btn-gray {
+  background-color: #ddd;
+  color: #333;
 }
 
-#reset-btn:hover {
-  background-color: #dc2626;
+.btn-gray:hover {
+  background-color: #ccc;
 }
 
 .config-item {
@@ -301,11 +293,9 @@ header {
   flex: 1;
   max-width: 200px;
   padding: 15px 30px;
-  border: none;
   border-radius: 4px;
   font-size: 1.3rem;
   font-weight: 600;
-  cursor: pointer;
   transition: all 0.2s;
   min-height: 60px;
 }
@@ -453,18 +443,8 @@ header {
 
 #new-session-btn {
   padding: 15px 40px;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 4px;
   font-size: 1.2rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-#new-session-btn:hover {
-  background-color: #2563eb;
 }
 
 /* Error Overlay */
@@ -504,31 +484,7 @@ header {
 }
 
 .error-content button {
-  padding: 10px 20px;
   margin-right: 10px;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-#retry-btn {
-  background-color: #3b82f6;
-  color: white;
-}
-
-#retry-btn:hover {
-  background-color: #2563eb;
-}
-
-#close-error-btn {
-  background-color: #ddd;
-  color: #333;
-}
-
-#close-error-btn:hover {
-  background-color: #ccc;
 }
 
 /* Loading Overlay */
