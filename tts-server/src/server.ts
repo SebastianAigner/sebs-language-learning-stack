@@ -609,25 +609,24 @@ app.post('/api/test', async (req: Request, res: Response): Promise<void> => {
 
 // Start server
 app.listen(CONFIG.port, () => {
-  console.log('');
-  console.log('═══════════════════════════════════════════');
-  console.log('  Japanese TTS Service');
-  console.log('═══════════════════════════════════════════');
-  console.log(`  Port:     ${CONFIG.port}`);
-  console.log(`  Provider: ${CONFIG.provider.toUpperCase()}`);
+  console.log(`\n  \x1b[34m\x1b[1mTTS SERVER\x1b[0m is running`);
+  console.log('  ═══════════════════════════════════════════');
+  console.log('    Japanese TTS Service');
+  console.log('  ═══════════════════════════════════════════');
+  console.log(`    Port:     ${CONFIG.port}`);
+  console.log(`    Provider: ${CONFIG.provider.toUpperCase()}`);
 
   if (CONFIG.provider === 'elevenlabs') {
-    console.log(`  Voice:    ${CONFIG.voiceId}`);
-    console.log(`  Model:    ${CONFIG.model}`);
+    console.log(`    Voice:    ${CONFIG.voiceId}`);
+    console.log(`    Model:    ${CONFIG.model}`);
   } else if (CONFIG.provider === 'azure') {
-    console.log(`  Region:   ${CONFIG.azureRegion}`);
-    console.log(`  Voice:    ${CONFIG.azureVoice}`);
+    console.log(`    Region:   ${CONFIG.azureRegion}`);
+    console.log(`    Voice:    ${CONFIG.azureVoice}`);
   }
 
-  console.log(`  Cache:    ${CONFIG.cacheDir}`);
+  console.log(`    Cache:    ${CONFIG.cacheDir}`);
   console.log('');
-  console.log(`  Management UI: http://localhost:${CONFIG.port}`);
-  console.log(`  TTS Endpoint:  http://localhost:${CONFIG.port}/tts?text=...`);
-  console.log('═══════════════════════════════════════════');
-  console.log('');
+  console.log(`    Management UI: http://localhost:${CONFIG.port}`);
+  console.log(`    TTS Endpoint:  http://localhost:${CONFIG.port}/tts?text=...`);
+  console.log('  ═══════════════════════════════════════════\n');
 });

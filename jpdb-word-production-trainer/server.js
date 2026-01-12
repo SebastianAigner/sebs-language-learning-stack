@@ -64,12 +64,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('┌────────────────────────────────────────────────┐');
-  console.log('│  Japanese Vocabulary Trainer - Server Running │');
-  console.log('└────────────────────────────────────────────────┘');
-  console.log('');
-  console.log(`  Local:   http://localhost:${PORT}`);
-  console.log('');
-  console.log('  Press Ctrl+C to stop the server');
-  console.log('');
+  console.log(`\n  \x1b[33m\x1b[1mWORD PRODUCTION TRAINER\x1b[0m is running`);
+  console.log(`  Local: http://localhost:${PORT}\n`);
 });

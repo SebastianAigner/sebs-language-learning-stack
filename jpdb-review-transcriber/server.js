@@ -350,7 +350,8 @@ app.get('/', (req, res) => {
 
 ensureStorageExists().then(() => {
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Storage directory: ${STORAGE_DIR}`);
+    console.log(`\n  \x1b[36m\x1b[1mREVIEW TRANSCRIBER\x1b[0m is running`);
+    console.log(`  Server running on http://localhost:${PORT}`);
+    console.log(`  Storage directory: ${STORAGE_DIR}\n`);
   });
 });
