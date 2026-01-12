@@ -15,12 +15,6 @@
       <span id="streak-counter" class="hidden"></span>
     </div>
     <div id="config-controls">
-      <input
-        type="text"
-        id="service-url"
-        placeholder="http://localhost:3000"
-        value="http://localhost:3000"
-        title="Vocabulary service URL">
       <button id="fetch-btn" class="btn-primary" title="Fetch new vocabulary from service">Fetch New</button>
       <button id="shuffle-btn" class="btn-secondary" title="Shuffle remaining queue">Shuffle Queue</button>
       <button id="reverse-btn" class="btn-secondary" title="Reverse remaining queue">Reverse Queue</button>
@@ -140,6 +134,21 @@
       <div id="completed-list-container">
         <p class="debug-empty">No items reviewed correctly yet</p>
         <ol id="completed-list" class="debug-list"></ol>
+      </div>
+    </details>
+
+    <details id="settings-panel">
+      <summary>Settings</summary>
+      <div class="settings-content">
+        <div class="setting-item">
+          <label for="service-url">Service URL:</label>
+          <input
+            type="text"
+            id="service-url"
+            placeholder="http://localhost:3000"
+            value="http://localhost:3000"
+            title="Vocabulary service URL">
+        </div>
       </div>
     </details>
   </aside>

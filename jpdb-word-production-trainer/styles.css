@@ -74,7 +74,23 @@ header {
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.9rem;
-  width: 200px;
+  width: 100%;
+}
+
+.settings-content {
+  padding: 10px;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-item label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #555;
 }
 
 /* Base button style */
