@@ -191,19 +191,5 @@ export function setupEventListeners(elements, render, callbacks) {
     saveState();
   });
 
-  // Auto-advance checkbox - update config on change
-  elements.autoAdvanceCheckbox.addEventListener('change', () => {
-    state.config.autoAdvanceCorrect = elements.autoAdvanceCheckbox.checked;
-    console.log('Auto-advance updated to:', state.config.autoAdvanceCorrect);
-    saveState();
-  });
-
-  // TTS checkbox - update config on change
-  elements.ttsCheckbox.addEventListener('change', () => {
-    state.config.ttsEnabled = elements.ttsCheckbox.checked;
-    console.log('TTS updated to:', state.config.ttsEnabled);
-    saveState();
-  });
-
   console.log('Event listeners set up');
 }

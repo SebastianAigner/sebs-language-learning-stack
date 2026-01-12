@@ -42,8 +42,7 @@ export function initializeDOMElements() {
     removeKatakanaBtn: document.getElementById('remove-katakana-btn'),
     clearMistakesBtn: document.getElementById('clear-mistakes-btn'),
     resetBtn: document.getElementById('reset-btn'),
-    autoAdvanceCheckbox: document.getElementById('auto-advance-checkbox'),
-    ttsCheckbox: document.getElementById('tts-checkbox'),
+    ttsStatusContainer: document.getElementById('tts-status-container'),
 
     // Error
     errorMessage: document.getElementById('error-message'),

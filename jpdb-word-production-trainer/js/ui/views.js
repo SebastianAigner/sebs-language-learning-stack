@@ -59,10 +59,8 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
   const isExact = isExactMatch(currentInput, correctJapanese);
   
   // Play TTS pronunciation for all revealed answers, using reading (kana) if available
-  if (state.config.ttsEnabled) {
-    const ttsText = item.reading || correctJapanese;
-    playTTS(ttsText);
-  }
+  const ttsText = item.reading || correctJapanese;
+  playTTS(ttsText);
 
   if (isExact) {
     elements.comparisonGrid.classList.add('exact-match');
@@ -74,12 +72,8 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
     // Play correct answer sound
     playCorrectSound();
     
-    // Auto-advance after 1 second if enabled
-    if (state.config.autoAdvanceCorrect) {
-      startAutoAdvanceTimer(handleGoodCallback, 1000);
-    } else {
-      clearAutoAdvanceTimer();
-    }
+    // Auto-advance after 1 second
+    startAutoAdvanceTimer(handleGoodCallback, 1000);
 
     // Focus on Good button for keyboard accessibility
     setTimeout(() => elements.goodBtn.focus(), 0);
@@ -230,20 +224,6 @@ export function hideError(elements) {
 // Update service URL input
 export function updateServiceUrlInput(elements, serviceUrl) {
   elements.serviceUrl.value = serviceUrl;
-}
-
-// Update auto-advance checkbox
-export function updateAutoAdvanceCheckbox(elements, autoAdvance) {
-  if (elements.autoAdvanceCheckbox) {
-    elements.autoAdvanceCheckbox.checked = autoAdvance;
-  }
-}
-
-// Update TTS checkbox
-export function updateTTSCheckbox(elements, ttsEnabled) {
-  if (elements.ttsCheckbox) {
-    elements.ttsCheckbox.checked = ttsEnabled;
-  }
 }
 
 // Show toast notification

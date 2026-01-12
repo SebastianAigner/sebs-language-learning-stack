@@ -74,6 +74,10 @@ export function loadState() {
       Object.assign(state.config, parsed.config || {});
       Object.assign(state.session, parsed.session || {});
 
+      // Force enable TTS and Auto-advance regardless of saved settings
+      state.config.ttsEnabled = true;
+      state.config.autoAdvanceCorrect = true;
+
       // Reset UI state to defaults (don't restore comparison view state)
       state.ui = {
         currentInput: '',

@@ -3,10 +3,12 @@
 import { state, getCurrentItem, isQueueEmpty } from '../state.js';
 import { handleGoodGrade } from '../grading.js';
 import { initializeDOMElements } from './dom-elements.js';
-import { showLoading as showLoadingOverlay, hideLoading as hideLoadingOverlay, showError as showErrorOverlay, hideError as hideErrorOverlay, updateServiceUrlInput as updateServiceUrlField, updateAutoAdvanceCheckbox as updateAutoAdvanceField, updateTTSCheckbox as updateTTSField } from './views.js';
+import { showLoading as showLoadingOverlay, hideLoading as hideLoadingOverlay, showError as showErrorOverlay, hideError as hideErrorOverlay, updateServiceUrlInput as updateServiceUrlField } from './views.js';
 import { showPromptView, showComparisonView, showCompletionView, updateStats, updateMistakesButton, updateDebugPanels } from './views.js';
 import { setupEventListeners as setupEvents } from './events.js';
 import { startAutoAdvanceTimer } from './timer.js';
+import { initTTSIndicator } from './tts-indicator.js';
+import { CONFIG } from '../config.js';
 
 // DOM elements cache
 let elements = {};
@@ -70,6 +72,5 @@ export function setupEventListeners(callbacks) {
 // Initialize service URL input and config with current value
 export function updateConfigInputs() {
   updateServiceUrlField(elements, state.config.serviceUrl);
-  updateAutoAdvanceField(elements, state.config.autoAdvanceCorrect);
-  updateTTSField(elements, state.config.ttsEnabled);
+  initTTSIndicator('tts-status-container', CONFIG.TTS_BASE_URL);
 }
