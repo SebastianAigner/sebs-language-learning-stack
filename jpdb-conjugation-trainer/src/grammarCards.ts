@@ -76,6 +76,7 @@ export function addGrammarCard(description: string, instructions?: string, varia
     instructions,
     variants,
     createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
   cards.push(newCard);
   saveGrammarCards(cards);
@@ -99,7 +100,13 @@ export function updateGrammarCard(id: string, description: string, instructions?
   const cards = loadGrammarCards();
   const index = cards.findIndex(c => c.id === id);
   if (index !== -1) {
-    cards[index] = { ...cards[index], description, instructions, variants };
+    cards[index] = { 
+      ...cards[index], 
+      description, 
+      instructions, 
+      variants,
+      updatedAt: Date.now()
+    };
     saveGrammarCards(cards);
   }
 }

@@ -29,8 +29,10 @@ export const GrammarCardManager: React.FC<GrammarCardManagerProps> = ({ onBack }
   const [editingId, setEditingId] = useState<string | null>(null);
   const [lastExportTime, setLastExportTime] = useState(() => getLastExportTime());
 
-  const newCardsCount = cards.filter(card => card.createdAt > lastExportTime).length;
-  const shouldHighlightExport = newCardsCount > 3;
+  const changedCardsCount = cards.filter(card => 
+    card.createdAt > lastExportTime || (card.updatedAt && card.updatedAt > lastExportTime)
+  ).length;
+  const shouldHighlightExport = changedCardsCount >= 3;
 
   const handleSubmit = () => {
     if (!newDescription.trim()) return;

@@ -160,6 +160,7 @@ export interface GrammarCard {
   instructions?: string;
   variants?: string[];
   createdAt: number;
+  updatedAt?: number;
 }
 
 // Review queue item

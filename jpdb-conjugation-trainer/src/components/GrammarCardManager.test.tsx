@@ -36,28 +36,26 @@ describe('GrammarCardManager', () => {
     expect(html).toContain('Export Cards');
   });
 
-  it('highlights export button when more than 3 new cards exist', () => {
+  it('highlights export button when 3 or more changed cards exist', () => {
     const lastExport = 1000;
     vi.mocked(grammarCards.getLastExportTime).mockReturnValue(lastExport);
     vi.mocked(grammarCards.loadGrammarCards).mockReturnValue([
       { id: '1', description: 'C1', createdAt: 2000 },
-      { id: '2', description: 'C2', createdAt: 2001 },
+      { id: '2', description: 'C2', createdAt: 500, updatedAt: 2001 },
       { id: '3', description: 'C3', createdAt: 2002 },
-      { id: '4', description: 'C4', createdAt: 2003 },
     ]);
     
     const html = renderToString(<GrammarCardManager onBack={() => {}} />);
     expect(html).toContain('export-attention');
   });
 
-  it('does not highlight export button when 3 or fewer new cards exist', () => {
+  it('does not highlight export button when fewer than 3 changed cards exist', () => {
     const lastExport = 1000;
     vi.mocked(grammarCards.getLastExportTime).mockReturnValue(lastExport);
     vi.mocked(grammarCards.loadGrammarCards).mockReturnValue([
       { id: '1', description: 'C1', createdAt: 2000 },
-      { id: '2', description: 'C2', createdAt: 2001 },
+      { id: '2', description: 'C2', createdAt: 500, updatedAt: 600 }, // Old card, old update
       { id: '3', description: 'C3', createdAt: 2002 },
-      { id: '4', description: 'C4', createdAt: 500 }, // Old card
     ]);
     
     const html = renderToString(<GrammarCardManager onBack={() => {}} />);
