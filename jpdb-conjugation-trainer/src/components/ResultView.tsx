@@ -97,6 +97,10 @@ export function ResultView({
     onAdvance: advanceToNext
   });
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [gradingResult]);
+
   // Handle Enter key to advance when correct (and auto-advance is disabled)
   useEffect(() => {
     const shouldHandleEnter = (!showTypingPractice || gradingResult.isCorrect || wasOverriddenAsCorrect) && !config.autoAdvance;

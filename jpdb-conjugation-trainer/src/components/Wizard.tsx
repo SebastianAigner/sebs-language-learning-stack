@@ -34,6 +34,10 @@ const CONJUGATION_PAIRS: [ConjugationType, ConjugationType][] = [
 ];
 
 export function Wizard() {
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [step, setStep] = useState<WizardStep>(1);
   const [source, setSource] = useState<'today' | 'evergreen' | 'grammar'>('today');
   const [mode, setMode] = useState<ReviewMode>('both');

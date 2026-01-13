@@ -37,6 +37,7 @@ export function PromptView({
 
   useEffect(() => {
     inputRef.current?.focus();
+    window.scrollTo(0, 0);
   }, [currentIndex]);
 
   const handleSubmit = async () => {

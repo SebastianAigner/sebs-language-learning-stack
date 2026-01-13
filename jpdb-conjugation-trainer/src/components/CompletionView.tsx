@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { SessionState } from '../types';
 import { Button } from './ui/Button';
 
@@ -7,6 +8,10 @@ interface CompletionViewProps {
 }
 
 export function CompletionView({ session, onStartNewSession }: CompletionViewProps) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="view">
       <h2>Session Complete!</h2>
