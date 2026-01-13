@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import { produce } from 'immer';
 import type { ConfigState } from '../types';
 import { loadConfig, saveConfig, loadBlacklist, saveBlacklist, loadAlwaysAddCards, saveAlwaysAddCards, loadAlwaysAddAdjectives, saveAlwaysAddAdjectives } from '../persistence';
-import { useNotification } from './NotificationContext';
 
 interface ConfigContextValue {
   config: ConfigState;
@@ -33,7 +32,6 @@ const DEFAULT_CONFIG: ConfigState = {
 };
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
-  const { showNotification } = useNotification();
   const [config, setConfig] = useState<ConfigState>(() => {
     const saved = loadConfig();
     const blacklist = loadBlacklist();
