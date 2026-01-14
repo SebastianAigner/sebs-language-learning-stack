@@ -42,7 +42,9 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
 
   // Get Japanese text from various possible fields
   const correctJapanese = item.japaneseText || item.japanese || item.spelling || 'No Japanese text available';
+  const englishDef = item.englishDefinition || item.english || item.meaning || item.definition || 'No definition available';
 
+  elements.comparisonEnglishText.textContent = englishDef;
   elements.userAnswer.textContent = currentInput;
   elements.correctAnswer.textContent = correctJapanese;
 

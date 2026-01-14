@@ -222,6 +222,10 @@ button:disabled {
   color: #111;
 }
 
+#comparison-view .english-definition {
+  margin-bottom: 10px;
+}
+
 #japanese-input {
   width: 100%;
   padding: 15px 20px;

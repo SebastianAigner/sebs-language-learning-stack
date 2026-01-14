@@ -17,6 +17,7 @@ export function initializeDOMElements() {
     japaneseInput: document.getElementById('japanese-input'),
 
     // Comparison view
+    comparisonEnglishText: document.getElementById('comparison-english-text'),
     userAnswer: document.getElementById('user-answer'),
     correctAnswer: document.getElementById('correct-answer'),
     comparisonGrid: document.getElementById('comparison-grid'),
