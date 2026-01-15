@@ -345,6 +345,11 @@ export function Wizard() {
               onChange={(e) => setShuffleGrammar(e.target.checked)}
               label="Shuffle cards"
             />
+            {!shuffleGrammar && (
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                Cards will be presented from newest to oldest.
+              </p>
+            )}
           </div>
         </div>
       )}
