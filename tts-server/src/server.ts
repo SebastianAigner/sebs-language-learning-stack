@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import cors from 'cors';
 import { createHash } from 'crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
@@ -55,6 +56,11 @@ interface CacheFileInfo {
   created: string;
 }
 
+interface TtsRequestBody {
+  text?: string;
+  previous_text?: string;
+}
+
 interface CacheStats {
   totalFiles: number;
   totalSize: number;
@@ -80,8 +86,8 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Load API keys
-let ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY || '';
-let AZURE_API_KEY: string = process.env.AZURE_API_KEY || '';
+const ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY || '';
+const AZURE_API_KEY: string = process.env.AZURE_API_KEY || '';
 
 if (CONFIG.provider === 'elevenlabs') {
   if (!ELEVENLABS_API_KEY) {
@@ -140,7 +146,7 @@ function loadCacheMetadata(hash: string): CacheMetadata | null {
     return null;
   }
   try {
-    return JSON.parse(readFileSync(metadataPath, 'utf-8'));
+    return JSON.parse(readFileSync(metadataPath, 'utf-8')) as CacheMetadata;
   } catch (error) {
     console.warn(`Failed to load metadata for ${hash}:`, (error as Error).message);
     return null;
@@ -266,7 +272,7 @@ async function callAzureSpeechAPI(text: string, previousText?: string): Promise<
     speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio48Khz192KBitRateMonoMp3;
 
     // Create synthesizer with null output (we'll get the data from events)
-    const synthesizer = new sdk.SpeechSynthesizer(speechConfig, undefined as any);
+    const synthesizer = new sdk.SpeechSynthesizer(speechConfig, null);
 
     // Azure: Prepend previous text context at volume "silent" (0)
     // This provides context for the neural engine to produce more natural prosody
@@ -321,7 +327,9 @@ async function generateAndCacheTTS(text: string, hash: string, previousText?: st
     }
     audioBuffer = await callAzureSpeechAPI(text, previousText);
   } else {
-    throw new Error(`Unknown TTS provider: ${CONFIG.provider}`);
+    // Exhaustive check - this branch should never be reached
+    const _exhaustiveCheck: never = CONFIG.provider;
+    throw new Error(`Unknown TTS provider: ${String(_exhaustiveCheck)}`);
   }
 
   // Save to cache
@@ -355,67 +363,74 @@ app.get('/health', (_req: Request, res: Response) => {
 /**
  * GET /tts?text=...&previous_text=... - Generate or serve cached TTS audio
  */
-app.get('/tts', async (req: Request, res: Response) => {
+app.get('/tts', (req: Request, res: Response): void => {
   const { text, previous_text } = req.query;
 
   // Validate input
   if (!text) {
-    return res.status(400).json({ error: 'Missing "text" parameter' });
+    res.status(400).json({ error: 'Missing "text" parameter' });
+    return;
   }
 
   if (typeof text !== 'string' || text.trim().length === 0) {
-    return res.status(400).json({ error: 'Invalid text parameter' });
+    res.status(400).json({ error: 'Invalid text parameter' });
+    return;
   }
 
   if (text.length > CONFIG.maxTextLength) {
-    return res.status(400).json({
+    res.status(400).json({
       error: `Text too long (max ${CONFIG.maxTextLength} characters)`
     });
+    return;
   }
 
+  const textValue = text;
   const previousText = previous_text && typeof previous_text === 'string' ? previous_text : undefined;
 
   // Generate cache key
-  const hash = generateCacheKey(text, previousText);
+  const hash = generateCacheKey(textValue, previousText);
   const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
 
-  try {
-    // If download is requested, set headers
-    if (req.query.download === 'true') {
-      const sanitizedText = (text as string).replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
-      const filename = `${sanitizedText}.mp3`;
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
-    }
+  // If download is requested, set headers
+  if (req.query.download === 'true') {
+    const sanitizedText = textValue.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
+    const filename = `${sanitizedText}.mp3`;
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  }
 
-    // Check if cached
-    if (existsSync(audioPath)) {
-      console.log(`Cache HIT for "${text}" (${hash}.mp3)`);
-      res.set({
-        'Content-Type': 'audio/mpeg',
-        'Cache-Control': 'public, max-age=31536000',
-        'X-Cache-Status': 'HIT'
-      });
-      return res.sendFile(audioPath);
-    }
-
-    // Cache miss - generate TTS
-    console.log(`Cache MISS for "${text}"`);
-    await generateAndCacheTTS(text, hash, previousText);
-
+  // Check if cached
+  if (existsSync(audioPath)) {
+    console.log(`Cache HIT for "${textValue}" (${hash}.mp3)`);
     res.set({
       'Content-Type': 'audio/mpeg',
       'Cache-Control': 'public, max-age=31536000',
-      'X-Cache-Status': 'MISS'
+      'X-Cache-Status': 'HIT'
     });
     res.sendFile(audioPath);
-
-  } catch (error) {
-    console.error('TTS generation failed:', error);
-    res.status(500).json({
-      error: 'TTS generation failed',
-      details: (error as Error).message
-    });
+    return;
   }
+
+  // Cache miss - generate TTS
+  console.log(`Cache MISS for "${textValue}"`);
+
+  void (async (): Promise<void> => {
+    try {
+      await generateAndCacheTTS(textValue, hash, previousText);
+
+      res.set({
+        'Content-Type': 'audio/mpeg',
+        'Cache-Control': 'public, max-age=31536000',
+        'X-Cache-Status': 'MISS'
+      });
+      res.sendFile(audioPath);
+    } catch (error) {
+      console.error('TTS generation failed:', error);
+      res.status(500).json({
+        error: 'TTS generation failed',
+        details: (error as Error).message
+      });
+    }
+  })();
 });
 
 /**
@@ -516,95 +531,101 @@ app.get('/api/cache/audio/:hash', (req: Request, res: Response) => {
 /**
  * POST /api/regenerate - Delete cached audio and regenerate
  */
-app.post('/api/regenerate', async (req: Request, res: Response): Promise<void> => {
+app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res: Response): void => {
   const { text, previous_text } = req.body;
 
-  if (!text) {
+  if (!text || typeof text !== 'string') {
     res.status(400).json({ error: 'Missing "text" in request body' });
     return;
   }
 
+  const textValue = text;
   const previousText = previous_text && typeof previous_text === 'string' ? previous_text : undefined;
 
-  try {
-    const hash = generateCacheKey(text, previousText);
-    const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
-    const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
+  void (async (): Promise<void> => {
+    try {
+      const hash = generateCacheKey(textValue, previousText);
+      const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
+      const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
 
-    // Delete existing cached files
-    if (existsSync(audioPath)) {
-      unlinkSync(audioPath);
-      console.log(`✓ Deleted old cached audio ${hash}.mp3`);
+      // Delete existing cached files
+      if (existsSync(audioPath)) {
+        unlinkSync(audioPath);
+        console.log(`✓ Deleted old cached audio ${hash}.mp3`);
+      }
+      if (existsSync(metadataPath)) {
+        unlinkSync(metadataPath);
+      }
+
+      // Generate random seed for variation (0 to 4294967295)
+      const randomSeed = Math.floor(Math.random() * 4294967296);
+
+      // Generate new audio with random seed
+      await generateAndCacheTTS(textValue, hash, previousText, randomSeed);
+
+      let url = `/tts?text=${encodeURIComponent(textValue)}`;
+      if (previousText) {
+        url += `&previous_text=${encodeURIComponent(previousText)}`;
+      }
+
+      res.json({
+        success: true,
+        hash,
+        url
+      });
+    } catch (error) {
+      console.error('Regeneration failed:', error);
+      res.status(500).json({
+        error: 'Regeneration failed',
+        details: (error as Error).message
+      });
     }
-    if (existsSync(metadataPath)) {
-      unlinkSync(metadataPath);
-    }
-
-    // Generate random seed for variation (0 to 4294967295)
-    const randomSeed = Math.floor(Math.random() * 4294967296);
-
-    // Generate new audio with random seed
-    await generateAndCacheTTS(text, hash, previousText, randomSeed);
-
-    let url = `/tts?text=${encodeURIComponent(text)}`;
-    if (previousText) {
-      url += `&previous_text=${encodeURIComponent(previousText)}`;
-    }
-
-    res.json({
-      success: true,
-      hash,
-      url
-    });
-  } catch (error) {
-    console.error('Regeneration failed:', error);
-    res.status(500).json({
-      error: 'Regeneration failed',
-      details: (error as Error).message
-    });
-  }
+  })();
 });
 
 /**
  * POST /api/test - Test TTS generation
  */
-app.post('/api/test', async (req: Request, res: Response): Promise<void> => {
+app.post('/api/test', (req: Request<unknown, unknown, TtsRequestBody>, res: Response): void => {
   const { text, previous_text } = req.body;
 
-  if (!text) {
+  if (!text || typeof text !== 'string') {
     res.status(400).json({ error: 'Missing "text" in request body' });
     return;
   }
 
+  const textValue = text;
   const previousText = previous_text && typeof previous_text === 'string' ? previous_text : undefined;
 
-  try {
-    const hash = generateCacheKey(text, previousText);
-    const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
-    const cached = existsSync(audioPath);
+  void (async (): Promise<void> => {
+    try {
+      const hash = generateCacheKey(textValue, previousText);
+      const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
+      const cached = existsSync(audioPath);
 
-    if (!cached) {
-      await generateAndCacheTTS(text, hash, previousText);
+      if (!cached) {
+        await generateAndCacheTTS(textValue, hash, previousText);
+      }
+
+      let url = `/tts?text=${encodeURIComponent(textValue)}`;
+      if (previousText) {
+        url += `&previous_text=${encodeURIComponent(previousText)}`;
+      }
+
+      res.json({
+        success: true,
+        cached,
+        hash,
+        url
+      });
+    } catch (error) {
+      console.error('Test failed:', error);
+      res.status(500).json({
+        error: 'Test failed',
+        details: (error as Error).message
+      });
     }
-
-    let url = `/tts?text=${encodeURIComponent(text)}`;
-    if (previousText) {
-      url += `&previous_text=${encodeURIComponent(previousText)}`;
-    }
-
-    res.json({
-      success: true,
-      cached,
-      hash,
-      url
-    });
-  } catch (error) {
-    console.error('Test failed:', error);
-    res.status(500).json({
-      error: 'Test failed',
-      details: (error as Error).message
-    });
-  }
+  })();
 });
 
 // Start server

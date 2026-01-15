@@ -123,6 +123,7 @@ function App() {
       setShowStarInHeader(false)
       setStarFadingOut(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- starImages is a constant array that never changes
   }, [showStarImage])
 
   // Restore saved values from localStorage on page load
@@ -472,12 +473,17 @@ function App() {
   }
 
   const streamOpenRouterResponse = async (userMessage: string, key: string, continueConversation: boolean, model: string) => {
-    const requestBody: any = {
+    const requestBody: {
+      model: string;
+      messages: { role: string; content: string }[];
+      stream: boolean;
+      reasoning?: { effort: string };
+    } = {
       model: model,
-      messages: continueConversation 
-        ? messages.map(msg => ({ 
-            role: msg.isUser ? 'user' : 'assistant', 
-            content: msg.text 
+      messages: continueConversation
+        ? messages.map(msg => ({
+            role: msg.isUser ? 'user' : 'assistant',
+            content: msg.text
           })).concat([{ role: 'user', content: userMessage }])
         : [{ role: 'user', content: userMessage }],
       stream: true
@@ -506,7 +512,7 @@ function App() {
     const reader = response.body?.getReader()
     if (!reader) throw new Error('No reader available')
 
-    let assistantMessage = { text: '', isUser: false }
+    const assistantMessage = { text: '', isUser: false }
     setMessages(prev => [...prev, assistantMessage])
 
     try {
@@ -523,7 +529,7 @@ function App() {
             if (data === '[DONE]') continue
 
             try {
-              const parsed = JSON.parse(data)
+              const parsed = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] }
               const content = parsed.choices?.[0]?.delta?.content
               if (content) {
                 assistantMessage.text += content
@@ -598,7 +604,7 @@ function App() {
           </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="chat-input">
+        <form onSubmit={(e) => void handleSubmit(e)} className="chat-input">
           <div className="message-input-with-button">
             {messageStatus && (
               <div className={`message-status-indicator ${messageStatus.toLowerCase()}`}>
@@ -610,18 +616,18 @@ function App() {
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                 if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
                   e.preventDefault()
-                  handleSubmit(e as any)
+                  void handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
                 }
               }}
               placeholder="Type your message... (Add !f to continue conversation)"
               className="message-input"
             />
-            <button 
+            <button
               type="button"
-              onClick={askAside}
+              onClick={() => void askAside()}
               disabled={isLoading || !message.trim() || !apiKey.trim()}
               className="ask-aside-button"
               title="Ask without prepend/append text"
@@ -691,7 +697,7 @@ function App() {
                       </select>
                       <button 
                         className="ask-with-model-button"
-                        onClick={() => askWithSelectedModel(msg.fullText!, msg.text, askWithModel)}
+                        onClick={() => void askWithSelectedModel(msg.fullText!, msg.text, askWithModel)}
                         title="Ask selected model this question"
                       >
                         Ask
@@ -728,13 +734,13 @@ function App() {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
               e.preventDefault()
-              askFollowup()
+              void askFollowup()
             }
           }}
         />
         <div className="followup-buttons">
-          <button 
-            onClick={askFollowup}
+          <button
+            onClick={() => void askFollowup()}
             disabled={isLoading || !followupText.trim() || !apiKey.trim()}
             className="followup-button"
           >

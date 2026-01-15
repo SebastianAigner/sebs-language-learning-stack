@@ -16,11 +16,15 @@ This is a spaced repetition application for practicing Japanese verb and adjecti
 - Spaced repetition scheduling with configurable intervals [10, 15, 20, 30]
 
 ## Development Workflow
-1. Always run type checking before committing: `npm run type-check`
-2. Run linting to catch issues: `npm run lint`
+1. **Always run type checking before committing**: `npm run type-check`
+2. **Always run linting before committing**: `npm run lint`
+   - Fix linting issues with: `npm run lint:fix`
+   - Linting uses strict type-checked rules including no-floating-promises, no-misused-promises, await-thenable
 3. Run unit tests: `npm test`
 4. Dev server runs on port 5174
 5. Use single quotes for git commits (per global CLAUDE.md)
+
+**Important**: Both type-check and lint must pass before commits are made.
 
 ## Important Files
 - `src/main.ts` - Main application controller and UI logic
