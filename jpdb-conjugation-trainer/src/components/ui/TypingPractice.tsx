@@ -28,9 +28,7 @@ export function TypingPractice({
         autoFocus
         autoComplete="off"
       />
-      {hint && (
-        <div className="typing-practice-hint">{hint}</div>
-      )}
+      {hint !== undefined && hint !== '' ? <div className="typing-practice-hint">{hint}</div> : null}
     </div>
   );
 }

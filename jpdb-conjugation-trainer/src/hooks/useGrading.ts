@@ -16,7 +16,7 @@ export function useGrading() {
   const { setRawOutput } = useUI();
 
   const handleGrade = useCallback(async (userAnswer: string) => {
-    if (!userAnswer || !currentItem) return;
+    if (userAnswer === '' || currentItem === undefined) return;
 
     // Update UI state to show grading view
     void navigate({ to: '/grading' });
@@ -36,7 +36,7 @@ export function useGrading() {
     );
 
     if (cachedResult) {
-      setRawOutput(cachedResult.rawOutput || '');
+      setRawOutput(cachedResult.rawOutput);
       void navigate({
         to: '/result',
         replace: true,
@@ -93,7 +93,7 @@ export function useGrading() {
         result
       );
 
-      setRawOutput(result.rawOutput || '');
+      setRawOutput(result.rawOutput);
 
       void navigate({
         to: '/result',

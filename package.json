@@ -1,6 +1,7 @@
 {
   "name": "sebs-language-learning-stack",
   "version": "1.0.0",
+  "type": "module",
   "description": "A collection of tools and services for Japanese language learning",
   "private": true,
   "workspaces": [

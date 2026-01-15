@@ -26,7 +26,7 @@ export function JPDBStatusIndicator({ jpdbServiceUrl }: JPDBStatusIndicatorProps
         } else {
           setIsOnline(false);
         }
-      } catch (error) {
+      } catch {
         setIsOnline(false);
       }
     };

@@ -51,7 +51,7 @@ describe('Blacklist functionality', () => {
       const queue = initializeQueue(mockItems, undefined, blacklist);
       
       expect(queue.length).toBe(1);
-      expect(queue[0]!.vocab!.word).toBe('word2');
+      expect(queue[0].vocab!.word).toBe('word2');
     });
 
     it('should filter out specific word-conjugation combinations', () => {
@@ -62,7 +62,7 @@ describe('Blacklist functionality', () => {
       const queue = initializeQueue(mockItems, enabledTypes, blacklist);
       
       expect(queue.length).toBe(1);
-      expect(queue[0]!.vocab!.word).toBe('word2');
+      expect(queue[0].vocab!.word).toBe('word2');
     });
 
     it('should pick a non-blacklisted conjugation if available', () => {
@@ -75,7 +75,7 @@ describe('Blacklist functionality', () => {
       // Try multiple times to ensure it never picks the blacklisted one
       for (let i = 0; i < 20; i++) {
         const queue = initializeQueue(mockItems, enabledTypes, blacklist);
-        const item1 = queue.find(it => it.vocab?.word === 'word1');
+        const item1 = queue.find(item => item.vocab?.word === 'word1');
         expect(item1).toBeDefined();
         expect(item1?.conjugationType).toBe('non-past-affirmative-polite');
       }
@@ -87,7 +87,7 @@ describe('Blacklist functionality', () => {
       
       const queue = initializeQueue(mockItems, enabledTypes, blacklist);
       expect(queue.length).toBe(1);
-      expect(queue[0]!.vocab!.word).toBe('word2');
+      expect(queue[0].vocab!.word).toBe('word2');
     });
   });
 });

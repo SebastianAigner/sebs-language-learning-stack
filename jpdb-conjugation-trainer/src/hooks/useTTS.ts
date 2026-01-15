@@ -27,7 +27,7 @@ export function useTTS({ ttsServiceUrl }: UseTTSOptions) {
   const playTTS = useCallback(async (text: string, previousText?: string) => {
     try {
       let url = `${ttsServiceUrl}/tts?text=${encodeURIComponent(text)}`;
-      if (previousText) {
+      if (previousText !== undefined && previousText !== '') {
         url += `&previous_text=${encodeURIComponent(previousText)}`;
       }
       await playStreamingAudio(url, { volume: 0.7 });
@@ -42,7 +42,7 @@ export function useTTS({ ttsServiceUrl }: UseTTSOptions) {
     setIsRegenerating(true);
     try {
       const requestBody: { text: string; previous_text?: string } = { text };
-      if (previousText) {
+      if (previousText !== undefined && previousText !== '') {
         requestBody.previous_text = previousText;
       }
 
@@ -73,7 +73,7 @@ export function useTTS({ ttsServiceUrl }: UseTTSOptions) {
   const replayTTS = useCallback(async (text: string, previousText?: string) => {
     try {
       await playTTS(text, previousText);
-    } catch (error) {
+    } catch {
       // Error already handled by playTTS
     }
   }, [playTTS]);

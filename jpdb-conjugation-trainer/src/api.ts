@@ -7,20 +7,20 @@ export async function fetchTodayVocabulary(apiBaseUrl: string): Promise<VocabIte
       throw new Error(`API request failed: ${response.status}`);
     }
 
-    const data: ApiResponse = await response.json();
+    const data = await response.json() as ApiResponse;
 
     // Parse and filter verb and adjective entries
     const items: VocabItem[] = [];
 
     for (const entry of data.entries) {
-      if (!entry.content || typeof entry.content !== 'string') {
-        console.warn('Skipping entry with invalid content:', entry);
+      if (entry.content === '') {
+        console.warn('Skipping entry with empty content:', entry);
         continue;
       }
 
       let content: VocabContent;
       try {
-        content = JSON.parse(entry.content);
+        content = JSON.parse(entry.content) as VocabContent;
       } catch (error) {
         console.warn('Failed to parse entry content:', entry, error);
         continue;
@@ -52,7 +52,7 @@ export async function fetchTodayVocabulary(apiBaseUrl: string): Promise<VocabIte
         }
       }
 
-      if (type) {
+      if (type !== null) {
         items.push({
           ...content,
           type,

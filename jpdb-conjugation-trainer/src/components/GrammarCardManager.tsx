@@ -29,20 +29,22 @@ export const GrammarCardManager: React.FC<GrammarCardManagerProps> = ({ onBack }
   const [editingId, setEditingId] = useState<string | null>(null);
   const [lastExportTime, setLastExportTime] = useState(() => getLastExportTime());
 
-  const changedCardsCount = cards.filter(card => 
-    card.createdAt > lastExportTime || (card.updatedAt && card.updatedAt > lastExportTime)
+  const changedCardsCount = cards.filter(card =>
+    card.createdAt > lastExportTime || (card.updatedAt !== undefined && card.updatedAt > lastExportTime)
   ).length;
   const shouldHighlightExport = changedCardsCount >= 3;
 
   const handleSubmit = () => {
-    if (!newDescription.trim()) return;
-    
-    const filteredVariants = variants.map(v => v.trim()).filter(v => v !== '');
+    if (newDescription.trim() === '') return;
 
-    if (editingId) {
-      updateGrammarCard(editingId, newDescription.trim(), newInstructions.trim() || undefined, filteredVariants.length > 0 ? filteredVariants : undefined);
+    const filteredVariants = variants.map(v => v.trim()).filter(v => v !== '');
+    const instructions = newInstructions.trim() !== '' ? newInstructions.trim() : undefined;
+    const variantsArg = filteredVariants.length > 0 ? filteredVariants : undefined;
+
+    if (editingId !== null) {
+      updateGrammarCard(editingId, newDescription.trim(), instructions, variantsArg);
     } else {
-      addGrammarCard(newDescription.trim(), newInstructions.trim() || undefined, filteredVariants.length > 0 ? filteredVariants : undefined);
+      addGrammarCard(newDescription.trim(), instructions, variantsArg);
     }
     
     setNewDescription('');
@@ -55,8 +57,8 @@ export const GrammarCardManager: React.FC<GrammarCardManagerProps> = ({ onBack }
 
   const handleEdit = (card: GrammarCard) => {
     setNewDescription(card.description);
-    setNewInstructions(card.instructions || '');
-    setVariants(card.variants || []);
+    setNewInstructions(card.instructions ?? '');
+    setVariants(card.variants ?? []);
     setEditingId(card.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -134,7 +136,7 @@ export const GrammarCardManager: React.FC<GrammarCardManagerProps> = ({ onBack }
 
       <Card style={{ padding: '24px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>
-          {editingId ? 'Edit Grammar Card' : 'Create New Card'}
+          {editingId !== null ? 'Edit Grammar Card' : 'Create New Card'}
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
@@ -186,14 +188,12 @@ export const GrammarCardManager: React.FC<GrammarCardManagerProps> = ({ onBack }
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <Button onClick={handleSubmit} disabled={!newDescription.trim()} style={{ width: '100%' }}>
-              {editingId ? 'Update Grammar Card' : 'Add Grammar Card'}
+            <Button onClick={handleSubmit} disabled={newDescription.trim() === ''} style={{ width: '100%' }}>
+              {editingId !== null ? 'Update Grammar Card' : 'Add Grammar Card'}
             </Button>
-            {editingId && (
-              <Button onClick={handleCancel} variant="secondary" style={{ width: '100%' }}>
+            {editingId !== null ? <Button onClick={handleCancel} variant="secondary" style={{ width: '100%' }}>
                 Cancel Edit
-              </Button>
-            )}
+              </Button> : null}
           </div>
         </div>
       </Card>
@@ -217,30 +217,24 @@ export const GrammarCardManager: React.FC<GrammarCardManagerProps> = ({ onBack }
                       />
                       <span style={{ fontSize: '10px', color: '#a0aec0', fontFamily: 'monospace' }}>ID: {card.id.slice(0, 8)}</span>
                     </div>
-                    {card.createdAt && (
-                      <span style={{ fontSize: '10px', color: '#a0aec0' }}>
+                    {card.createdAt !== 0 ? <span style={{ fontSize: '10px', color: '#a0aec0' }}>
                         {new Date(card.createdAt).toLocaleDateString()} {new Date(card.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
+                      </span> : null}
                   </div>
                   <div style={{ fontWeight: '600', marginBottom: '4px', color: '#4a5568', fontSize: '12px', textTransform: 'uppercase' }}>Task:</div>
                   <div style={{ whiteSpace: 'pre-wrap', marginBottom: '16px', fontSize: '18px', fontWeight: 'bold' }}>{card.description}</div>
-                  {card.instructions && (
-                    <>
+                  {card.instructions !== undefined && card.instructions !== '' ? <>
                       <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px', color: '#718096', textTransform: 'uppercase' }}>Instructions:</div>
                       <div style={{ fontSize: '14px', color: '#718096', whiteSpace: 'pre-wrap', fontStyle: 'italic', background: '#f8fafc', padding: '10px', borderRadius: '6px', marginBottom: '12px' }}>{card.instructions}</div>
-                    </>
-                  )}
-                  {card.variants && card.variants.length > 0 && (
-                    <>
+                    </> : null}
+                  {card.variants !== undefined && card.variants.length > 0 ? <>
                       <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px', color: '#718096', textTransform: 'uppercase' }}>Modifiers:</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {card.variants.map((v, i) => (
                           <span key={i} style={{ fontSize: '12px', background: '#edf2f7', padding: '2px 8px', borderRadius: '4px', color: '#4a5568' }}>{v}</span>
                         ))}
                       </div>
-                    </>
-                  )}
+                    </> : null}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                   <Button 

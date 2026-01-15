@@ -25,7 +25,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [ui, setUI] = useState<UIState>(() => {
     // Load tutorial mode from localStorage
     const savedTutorialMode = localStorage.getItem('jpdb-conjugation-trainer-tutorial-mode');
-    const tutorialMode = savedTutorialMode ? JSON.parse(savedTutorialMode) : false;
+    const tutorialMode = savedTutorialMode !== null && savedTutorialMode !== '' ? (JSON.parse(savedTutorialMode) as boolean) : false;
 
     return {
       tutorialMode,

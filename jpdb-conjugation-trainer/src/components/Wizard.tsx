@@ -49,10 +49,10 @@ export function Wizard() {
   const [cardsPerCategory, setCardsPerCategory] = useState<number>(1);
   const [enabledTypes, setEnabledTypes] = useState<ConjugationType[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CONJUGATION_TYPES);
-    if (saved) {
+    if (saved !== null && saved !== '') {
       try {
         return JSON.parse(saved) as ConjugationType[];
-      } catch (error) {
+      } catch {
         return [...ALL_CONJUGATION_TYPES];
       }
     }
@@ -153,7 +153,7 @@ export function Wizard() {
   const handleAdd = async () => {
     if (source === 'grammar') {
       const selected = allGrammarCards.filter(c => selectedGrammarCards.includes(c.id));
-      await practiceGrammar(selected, grammarVariantMode, shuffleGrammar);
+      practiceGrammar(selected, grammarVariantMode, shuffleGrammar);
       return;
     }
 
@@ -274,7 +274,7 @@ export function Wizard() {
               <input
                 type="number"
                 value={randomCount}
-                onChange={(e) => setRandomCount(Math.max(0, parseInt(e.target.value) || 0))}
+                onChange={(e) => setRandomCount(Math.max(0, parseInt(e.target.value) !== 0 ? parseInt(e.target.value) : 0))}
                 style={{ 
                   width: '50px', 
                   padding: '7px 8px', 
@@ -403,7 +403,7 @@ export function Wizard() {
               type="number"
               min="1"
               value={cardsPerCategory}
-              onChange={(e) => setCardsPerCategory(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => setCardsPerCategory(Math.max(1, parseInt(e.target.value) !== 0 ? parseInt(e.target.value) : 1))}
               disabled={!limitPerCategory}
               style={{
                 width: '60px',

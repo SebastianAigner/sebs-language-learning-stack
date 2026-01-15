@@ -1,7 +1,0 @@
-node_modules/
-dist/
-build/
-*.config.js
-*.config.ts
-vitest.config*.ts
-tts-service/

@@ -24,12 +24,10 @@ export const ErrorToast = memo(function ErrorToast({ message, stack, onDismiss }
       </div>
       <div className="error-toast-body">
         <div className="error-toast-message">{message}</div>
-        {stack && (
-          <details className="error-toast-details">
+        {stack !== undefined && stack !== '' ? <details className="error-toast-details">
             <summary>Stack trace</summary>
             <pre className="error-toast-stack">{stack}</pre>
-          </details>
-        )}
+          </details> : null}
       </div>
     </div>
   );

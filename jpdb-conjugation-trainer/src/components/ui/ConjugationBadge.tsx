@@ -34,11 +34,9 @@ export function ConjugationBadge({
   if (variant === 'pill') {
     return (
       <Badge variant="pill" style={style}>
-        {showEmoji && (
-          <div style={{ fontSize: '16px', letterSpacing: '2px' }}>
+        {showEmoji ? <div style={{ fontSize: '16px', letterSpacing: '2px' }}>
             {emoji}
-          </div>
-        )}
+          </div> : null}
         <div
           style={{
             fontSize: '14px',
@@ -54,16 +52,14 @@ export function ConjugationBadge({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', ...style }}>
-      {showEmoji && (
-        <div style={{ fontSize: '24px', marginBottom: '8px', letterSpacing: '4px' }}>
+      {showEmoji ? <div style={{ fontSize: '24px', marginBottom: '8px', letterSpacing: '4px' }}>
           {emoji}
-        </div>
-      )}
+        </div> : null}
       <div
         className="target-form"
         dangerouslySetInnerHTML={{ __html: colorizeLabel(label) }}
         title={title}
-        style={{ cursor: title ? 'help' : 'default' }}
+        style={{ cursor: title !== undefined && title !== '' ? 'help' : 'default' }}
       />
     </div>
   );

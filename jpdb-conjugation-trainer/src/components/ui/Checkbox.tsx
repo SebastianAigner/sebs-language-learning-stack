@@ -15,7 +15,7 @@ export function Checkbox({ label, className = '', id, children, style, ...props 
         type="checkbox"
         {...props}
       />
-      {label && <span style={{ fontSize: '14px' }}>{label}</span>}
+      {label !== undefined && label !== '' ? <span style={{ fontSize: '14px' }}>{label}</span> : null}
       {children}
     </label>
   );

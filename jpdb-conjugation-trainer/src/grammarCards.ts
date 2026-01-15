@@ -1,29 +1,33 @@
 import { STORAGE_KEYS } from './types';
 import type { GrammarCard } from './types';
 
+// Type for raw data from localStorage that might be missing createdAt
+type RawGrammarCard = Omit<GrammarCard, 'createdAt'> & { createdAt?: number };
+
 export function loadGrammarCards(): GrammarCard[] {
   const stored = localStorage.getItem(STORAGE_KEYS.GRAMMAR_CARDS);
-  if (!stored) return [];
+  if (stored === null || stored === '') return [];
   try {
-    const cards: GrammarCard[] = JSON.parse(stored);
+    const rawCards = JSON.parse(stored) as RawGrammarCard[];
 
     // One-off migration: assign createdAt to cards missing it
-    let modified = false;
     const lastWeek = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const migratedCards = cards.map((card, index) => {
-      if (!card.createdAt) {
-        modified = true;
+    const needsMigration = rawCards.some((card) => card.createdAt === undefined || card.createdAt === 0);
+
+    const migratedCards: GrammarCard[] = rawCards.map((card, index) => {
+      const createdAt = card.createdAt;
+      if (createdAt === undefined || createdAt === 0) {
         return { ...card, createdAt: lastWeek - index };
       }
-      return card;
+      return { ...card, createdAt };
     });
 
-    if (modified) {
+    if (needsMigration) {
       saveGrammarCards(migratedCards);
     }
 
     // Sort newest to oldest
-    return migratedCards.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return migratedCards.sort((a, b) => b.createdAt - a.createdAt);
   } catch (e) {
     console.error('Failed to parse grammar cards', e);
     return [];
@@ -36,13 +40,13 @@ export function saveGrammarCards(cards: GrammarCard[]): void {
 
 export function loadGrammarCardsInRotation(): string[] {
   const stored = localStorage.getItem(STORAGE_KEYS.GRAMMAR_CARDS_IN_ROTATION);
-  if (!stored) {
+  if (stored === null || stored === '') {
     // If not set, default to all cards being in rotation
     const cards = loadGrammarCards();
     return cards.map(c => c.id);
   }
   try {
-    return JSON.parse(stored);
+    return JSON.parse(stored) as string[];
   } catch (e) {
     console.error('Failed to parse grammar cards in rotation', e);
     return [];
@@ -113,7 +117,7 @@ export function updateGrammarCard(id: string, description: string, instructions?
 
 export function getLastExportTime(): number {
   const stored = localStorage.getItem(STORAGE_KEYS.LAST_EXPORT_TIME);
-  return stored ? parseInt(stored, 10) : 0;
+  return stored !== null && stored !== '' ? parseInt(stored, 10) : 0;
 }
 
 export function saveLastExportTime(time: number): void {

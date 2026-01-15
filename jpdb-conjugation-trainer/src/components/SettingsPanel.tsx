@@ -25,12 +25,12 @@ export function SettingsPanel() {
   const [manualAdjectiveInput, setManualAdjectiveInput] = useState<string>('');
 
   const handleAddManualVocabulary = () => {
-    const verbItems = manualVerbInput.trim() 
-      ? parseManualVocabulary(manualVerbInput, 'verb') 
+    const verbItems = manualVerbInput.trim() !== ''
+      ? parseManualVocabulary(manualVerbInput, 'verb')
       : { success: true as const, items: [] };
-    
-    const adjectiveItems = manualAdjectiveInput.trim() 
-      ? parseManualVocabulary(manualAdjectiveInput, 'adjective') 
+
+    const adjectiveItems = manualAdjectiveInput.trim() !== ''
+      ? parseManualVocabulary(manualAdjectiveInput, 'adjective')
       : { success: true as const, items: [] };
 
     if (!verbItems.success) {
@@ -53,11 +53,11 @@ export function SettingsPanel() {
     // Get enabled types from localStorage for manual addition
     let enabledTypes: ConjugationType[] = ALL_CONJUGATION_TYPES;
     const saved = localStorage.getItem(STORAGE_KEYS.CONJUGATION_TYPES);
-    if (saved) {
+    if (saved !== null && saved !== '') {
       try {
-        enabledTypes = JSON.parse(saved);
-      } catch (error) {
-        console.error('Failed to load conjugation types:', error);
+        enabledTypes = JSON.parse(saved) as ConjugationType[];
+      } catch {
+        // Keep default enabled types on parse failure
       }
     }
 

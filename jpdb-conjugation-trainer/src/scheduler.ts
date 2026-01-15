@@ -13,7 +13,7 @@ export function initializeQueue(items: VocabItem[], enabledTypes?: ConjugationTy
 
   // For each item, randomly select one conjugation type to practice
   for (const item of items) {
-    const wordType = item.type || 'verb'; // Default to verb for safety
+    const wordType = item.type;
     const availableTypesForThisWord = wordType === 'verb'
       ? VERB_CONJUGATION_TYPES
       : ADJECTIVE_CONJUGATION_TYPES;
@@ -66,7 +66,7 @@ export function initializeQueue(items: VocabItem[], enabledTypes?: ConjugationTy
 
     for (const item of queue) {
       const type = item.conjugationType!;
-      typeCounts[type] = (typeCounts[type] || 0) + 1;
+      typeCounts[type] = (typeCounts[type] ?? 0) + 1;
 
       if (typeCounts[type] <= maxPerType) {
         limitedQueue.push(item);
@@ -93,25 +93,19 @@ export function handleGoodGrade(
     const itemKey = getItemKey(currentItem);
 
     // Initialize tracking
-    if (!draft.repetitionCounts[itemKey]) {
-      draft.repetitionCounts[itemKey] = 0;
-    }
-    if (!draft.consecutiveCorrect[itemKey]) {
-      draft.consecutiveCorrect[itemKey] = 0;
-    }
+    draft.repetitionCounts[itemKey] ??= 0;
+    draft.consecutiveCorrect[itemKey] ??= 0;
 
     // Increment counts
     draft.repetitionCounts[itemKey]++;
     draft.consecutiveCorrect[itemKey]++;
 
     // Track attempt history
-    if (!draft.attemptHistory[itemKey]) {
-      draft.attemptHistory[itemKey] = {
-        attempts: 0,
-        lastWasCorrect: true,
-        completed: false
-      };
-    }
+    draft.attemptHistory[itemKey] ??= {
+      attempts: 0,
+      lastWasCorrect: true,
+      completed: false
+    };
     draft.attemptHistory[itemKey].lastWasCorrect = true;
 
     // If this is the first successful attempt (not a reschedule), count it
@@ -152,21 +146,15 @@ export function handleNotGoodGrade(state: SessionState): SessionState {
     const itemKey = getItemKey(currentItem);
 
     // Initialize tracking
-    if (!draft.repetitionCounts[itemKey]) {
-      draft.repetitionCounts[itemKey] = 0;
-    }
-    if (!draft.consecutiveCorrect[itemKey]) {
-      draft.consecutiveCorrect[itemKey] = 0;
-    }
+    draft.repetitionCounts[itemKey] ??= 0;
+    draft.consecutiveCorrect[itemKey] ??= 0;
 
     // Track attempt
-    if (!draft.attemptHistory[itemKey]) {
-      draft.attemptHistory[itemKey] = {
-        attempts: 0,
-        lastWasCorrect: false,
-        completed: false
-      };
-    }
+    draft.attemptHistory[itemKey] ??= {
+      attempts: 0,
+      lastWasCorrect: false,
+      completed: false
+    };
     draft.attemptHistory[itemKey].attempts++;
     draft.attemptHistory[itemKey].lastWasCorrect = false;
 
@@ -177,7 +165,7 @@ export function handleNotGoodGrade(state: SessionState): SessionState {
     // Smart rescheduling: Find items with same conjugation type and/or ending kana
     if (currentItem.type !== 'grammar' && currentItem.vocab) {
       const endingKana = getWordEndingKana(currentItem.vocab.word);
-      if (endingKana) {
+      if (endingKana !== null && endingKana !== '') {
         const relatedItems = findRelatedUpcomingItems(
           draft,
           currentItem.vocab.type,
@@ -306,7 +294,7 @@ function getWordEndingKana(word: string): string | null {
     '往く': 'いく-group'
   };
 
-  if (irregularGroups[word]) {
+  if (word in irregularGroups) {
     return irregularGroups[word];
   }
 

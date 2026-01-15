@@ -17,13 +17,13 @@ export function saveSession(session: SessionState): void {
 export function loadSession(): SessionState | null {
   try {
     const serialized = localStorage.getItem(STORAGE_KEYS.SESSION);
-    if (!serialized) {
+    if (serialized === null || serialized === '') {
       return null;
     }
 
-    let session: SessionState;
+    let parsed: unknown;
     try {
-      session = JSON.parse(serialized);
+      parsed = JSON.parse(serialized) as unknown;
     } catch (parseError) {
       console.error('Failed to parse session from localStorage:', parseError);
       clearSession();
@@ -31,7 +31,13 @@ export function loadSession(): SessionState | null {
     }
 
     // Validate session state to prevent corruption
-    if (!session.queue || !Array.isArray(session.queue)) {
+    const session = parsed as SessionState;
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      !('queue' in parsed) ||
+      !Array.isArray((parsed as { queue: unknown }).queue)
+    ) {
       console.warn('Invalid session: queue is missing or not an array');
       clearSession();
       return null;
@@ -55,13 +61,15 @@ export function loadSession(): SessionState | null {
 
     // Validate totalUniqueItems: it should never be larger than queue length
     // (queue can only grow by rescheduling items, never shrink the unique count)
-    if (session.totalUniqueItems && session.totalUniqueItems > session.queue.length) {
+    // Check against parsed (unknown) to handle malformed JSON from localStorage
+    const rawTotalUniqueItems = (parsed as { totalUniqueItems?: unknown }).totalUniqueItems;
+    if (typeof rawTotalUniqueItems === 'number' && rawTotalUniqueItems !== 0 && rawTotalUniqueItems > session.queue.length) {
       console.warn('Invalid session: totalUniqueItems exceeds queue length, recalculating', {
         totalUniqueItems: session.totalUniqueItems,
         queueLength: session.queue.length
       });
       // Count unique items in queue (vocab or grammar)
-      const uniqueItems = new Set(session.queue.map(item => 
+      const uniqueItems = new Set(session.queue.map(item =>
         item.type === 'grammar' ? `grammar-${item.grammarCard!.id}` : item.vocab!.word
       ));
       session.totalUniqueItems = uniqueItems.size;
@@ -69,7 +77,9 @@ export function loadSession(): SessionState | null {
 
     // Validate stats: totalReviewed should never exceed currentIndex
     // and currentStreak should never exceed totalReviewed
-    if (!session.stats) {
+    // Check against parsed (unknown) to handle malformed JSON from localStorage
+    const rawStats = (parsed as { stats?: unknown }).stats;
+    if (rawStats === undefined || rawStats === null) {
       session.stats = { totalReviewed: 0, currentStreak: 0 };
     } else {
       if (session.stats.totalReviewed > session.currentIndex) {
@@ -110,7 +120,7 @@ export interface Config {
 
 export function saveConfig(config: Partial<Config>): void {
   try {
-    const existing = loadConfig() || {};
+    const existing = loadConfig() ?? {};
     const updated = { ...existing, ...config };
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(updated));
   } catch (error) {
@@ -121,10 +131,10 @@ export function saveConfig(config: Partial<Config>): void {
 export function loadConfig(): Config | null {
   try {
     const serialized = localStorage.getItem(STORAGE_KEYS.CONFIG);
-    if (!serialized) {
+    if (serialized === null || serialized === '') {
       return null;
     }
-    return JSON.parse(serialized);
+    return JSON.parse(serialized) as Config;
   } catch (error) {
     console.error('Failed to load config:', error);
     return null;
@@ -153,7 +163,7 @@ export function saveAlwaysAddCards(cards: string): void {
 
 export function loadAlwaysAddCards(): string {
   try {
-    return localStorage.getItem(STORAGE_KEYS.ALWAYS_ADD_CARDS) || '';
+    return localStorage.getItem(STORAGE_KEYS.ALWAYS_ADD_CARDS) ?? '';
   } catch (error) {
     console.error('Failed to load always-add cards:', error);
     return '';
@@ -170,7 +180,7 @@ export function saveAlwaysAddAdjectives(cards: string): void {
 
 export function loadAlwaysAddAdjectives(): string {
   try {
-    return localStorage.getItem(STORAGE_KEYS.ALWAYS_ADD_ADJECTIVES) || '';
+    return localStorage.getItem(STORAGE_KEYS.ALWAYS_ADD_ADJECTIVES) ?? '';
   } catch (error) {
     console.error('Failed to load always-add adjectives:', error);
     return '';
@@ -188,7 +198,7 @@ export function saveBlacklist(words: string): void {
 
 export function loadBlacklist(): string {
   try {
-    return localStorage.getItem(STORAGE_KEYS.BLACKLIST) || '';
+    return localStorage.getItem(STORAGE_KEYS.BLACKLIST) ?? '';
   } catch (error) {
     console.error('Failed to load blacklist:', error);
     return '';
@@ -214,7 +224,7 @@ export function isBlacklisted(blacklist: Set<string>, word: string, conjugation?
   if (blacklist.has(word)) {
     return true;
   }
-  if (conjugation && blacklist.has(`${word}#${conjugation}`)) {
+  if (conjugation !== undefined && conjugation !== '' && blacklist.has(`${word}#${conjugation}`)) {
     return true;
   }
   return false;

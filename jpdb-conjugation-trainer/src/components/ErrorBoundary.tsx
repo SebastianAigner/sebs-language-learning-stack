@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     console.error('Error caught by boundary:', error, errorInfo);
     this.setState(prev => produce(prev, draft => {
       draft.error = error;
-      draft.errorInfo = errorInfo.componentStack || null;
+      draft.errorInfo = errorInfo.componentStack ?? null;
     }));
   }
 
@@ -57,8 +57,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </p>
           </Alert>
 
-          {this.state.error && (
-            <details open style={{
+          {this.state.error ? <details open style={{
               backgroundColor: '#f7fafc',
               padding: '15px',
               borderRadius: '8px',
@@ -77,10 +76,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 borderRadius: '6px'
               }}>
                 {this.state.error.toString()}
-                {this.state.errorInfo && `\n\n${this.state.errorInfo}`}
+                {this.state.errorInfo !== null && this.state.errorInfo !== '' ? `\n\n${this.state.errorInfo}` : null}
               </pre>
-            </details>
-          )}
+            </details> : null}
 
           <Button
             onClick={this.handleReset}

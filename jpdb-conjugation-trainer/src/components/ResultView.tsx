@@ -129,7 +129,7 @@ export function ResultView({
     }
     playedForResultRef.current = gradingResult;
 
-    const textToSpeak = gradingResult.reading || gradingResult.correctAnswer;
+    const textToSpeak = gradingResult.reading ?? gradingResult.correctAnswer;
 
     // Play sound effect immediately
     if (gradingResult.isCorrect) {
@@ -139,7 +139,7 @@ export function ResultView({
     }
 
     // Play TTS audio for the correct answer
-    if (textToSpeak) {
+    if (textToSpeak !== '') {
       playTTS(textToSpeak).catch(error => {
         console.warn('TTS playback failed:', error);
       });
@@ -163,17 +163,17 @@ export function ResultView({
   };
 
   const handleReplayTTS = () => {
-    const textToSpeak = gradingResult.reading || gradingResult.correctAnswer;
+    const textToSpeak = gradingResult.reading ?? gradingResult.correctAnswer;
 
-    if (textToSpeak) {
+    if (textToSpeak !== '') {
       void replayTTS(textToSpeak);
     }
   };
 
   const handleRegenerateTTS = () => {
-    const textToSpeak = gradingResult.reading || gradingResult.correctAnswer;
+    const textToSpeak = gradingResult.reading ?? gradingResult.correctAnswer;
 
-    if (textToSpeak) {
+    if (textToSpeak !== '') {
       void regenerateTTS(textToSpeak);
     }
   };
@@ -216,17 +216,13 @@ export function ResultView({
 
   return (
     <div className="view">
-      {ttsError && (
-        <Alert variant="error">
+      {ttsError !== null ? <Alert variant="error">
           {ttsError.message}
-        </Alert>
-      )}
+        </Alert> : null}
 
-      {gradingResult.freeText && (
-        <div className="feedback-section">
+      {gradingResult.freeText !== undefined && gradingResult.freeText !== '' ? <div className="feedback-section">
           <MarkdownRenderer content={gradingResult.freeText} />
-        </div>
-      )}
+        </div> : null}
 
       <div id="correct-answer-display">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -235,7 +231,7 @@ export function ResultView({
               <div className="correct-answer-label" style={{ color: '#a0aec0' }}>Task:</div>
               <div className="grammar-description" style={{ color: '#a0aec0', fontSize: '20px' }}>
                 {gradingResult.reviewItem.grammarCard?.description}
-                {gradingResult.reviewItem.variant && ` ${gradingResult.reviewItem.variant}`}
+                {gradingResult.reviewItem.variant !== undefined && gradingResult.reviewItem.variant !== '' ? ` ${gradingResult.reviewItem.variant}` : null}
               </div>
             </div>
           ) : (
@@ -251,8 +247,7 @@ export function ResultView({
               <div className="correct-answer-text" style={{ color: '#a0aec0' }}>
                 {gradingResult.reviewItem.vocab?.word}
               </div>
-              {gradingResult.reviewItem.vocab && Object.values(gradingResult.reviewItem.vocab.meanings).flat().length > 0 && (
-                <div style={{
+              {gradingResult.reviewItem.vocab && Object.values(gradingResult.reviewItem.vocab.meanings).flat().length > 0 ? <div style={{
                   fontSize: '14px',
                   color: '#a0aec0',
                   marginTop: '4px',
@@ -260,13 +255,11 @@ export function ResultView({
                   margin: '4px auto 0'
                 }}>
                   {Object.values(gradingResult.reviewItem.vocab.meanings).flat().join(', ')}
-                </div>
-              )}
+                </div> : null}
             </div>
           )}
 
-          {gradingResult.userAnswer && (
-            <div style={{ textAlign: 'center' }}>
+          {gradingResult.userAnswer !== undefined && gradingResult.userAnswer !== '' ? <div style={{ textAlign: 'center' }}>
               <div className="correct-answer-label" style={{ color: '#718096' }}>Your answer:</div>
               <div style={{
                 fontSize: '32px',
@@ -275,8 +268,7 @@ export function ResultView({
               }}>
                 {gradingResult.userAnswer}
               </div>
-            </div>
-          )}
+            </div> : null}
 
           {/* Middle: Divider with pill-shaped transformation label */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -314,15 +306,13 @@ export function ResultView({
               <div className="correct-answer-label">Correct answer:</div>
               <div>
                 <div className="correct-answer-text">{gradingResult.correctAnswer}</div>
-                {gradingResult.reading && (
-                  <div style={{
+                {gradingResult.reading !== undefined && gradingResult.reading !== '' ? <div style={{
                     fontSize: '14px',
                     color: '#718096',
                     marginTop: '4px'
                   }}>
                     {gradingResult.reading}
-                  </div>
-                )}
+                  </div> : null}
               </div>
             </div>
             <div className="audio-controls" style={{
@@ -362,26 +352,22 @@ export function ResultView({
         </div>
       </div>
 
-      {gradingResult.explanation && (
-        <div id="explanation-display">
+      {gradingResult.explanation !== undefined && gradingResult.explanation !== '' ? <div id="explanation-display">
           <div className="explanation-content">
             <MarkdownRenderer content={gradingResult.explanation} />
           </div>
-        </div>
-      )}
+        </div> : null}
 
-      {showTypingPractice && !gradingResult.isCorrect && (
-        <TypingPractice
+      {showTypingPractice && !gradingResult.isCorrect ? <TypingPractice
           value={typingInput}
           onChange={setTypingInput}
           onComplete={handleTypingComplete}
           hint={typingHint}
-        />
-      )}
+        /> : null}
 
       <div style={{ marginTop: '20px', width: '100%' }}>
         {isGrammar ? (
-          gradingResult.reviewItem.grammarCard?.instructions && (
+          gradingResult.reviewItem.grammarCard?.instructions !== undefined && gradingResult.reviewItem.grammarCard.instructions !== '' && (
             <div className="tutorial-banner" style={{ margin: '0', width: '100%', boxSizing: 'border-box' }}>
               <img src="/img/beginner.svg" alt="Beginner" className="tutorial-image" />
               <div className="tutorial-content">
@@ -399,36 +385,27 @@ export function ResultView({
       </div>
 
       <div id="result-actions">
-        {showTypingPractice && !gradingResult.isCorrect && !wasOverriddenAsCorrect && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '20px' }}>
-            {isCurrentItem && (
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+        {showTypingPractice && !gradingResult.isCorrect && !wasOverriddenAsCorrect ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '20px' }}>
+            {isCurrentItem ? <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                 <Button variant="secondary" onClick={handleSkipTyping}>Skip Typing</Button>
                 <Button variant="secondary" onClick={handleOverrideAsCorrect}>Actually, I Got It Right</Button>
-              </div>
-            )}
+              </div> : null}
             {!isCurrentItem && (
               <Button variant="primary" onClick={advanceToNext} style={{ marginBottom: '10px' }}>
                 Back to Practice
               </Button>
             )}
-          </div>
-        )}
-        {(!showTypingPractice || gradingResult.isCorrect || wasOverriddenAsCorrect) && !config.autoAdvance && (
-          <div style={{ display: 'flex', gap: '10px', flexDirection: 'column', alignItems: 'center' }}>
+          </div> : null}
+        {(!showTypingPractice || gradingResult.isCorrect || wasOverriddenAsCorrect) && !config.autoAdvance ? <div style={{ display: 'flex', gap: '10px', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '10px' }}>
               <Button variant="primary" onClick={advanceToNext}>
                 {isCurrentItem ? 'Next' : 'Back to Practice'}
               </Button>
-              {(isCurrentItem && gradingResult.isCorrect && !wasOverriddenAsCorrect) && (
-                <Button variant="secondary" onClick={markAsMistake}>I made a mistake</Button>
-              )}
+              {(isCurrentItem && gradingResult.isCorrect && !wasOverriddenAsCorrect) ? <Button variant="secondary" onClick={markAsMistake}>I made a mistake</Button> : null}
             </div>
-          </div>
-        )}
+          </div> : null}
 
-        {isCurrentItem && !isGrammar && (
-          <div style={{ marginTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {isCurrentItem && !isGrammar ? <div style={{ marginTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Button
               variant="secondary"
               onClick={handleAddToBlacklistCombination}
@@ -443,8 +420,7 @@ export function ResultView({
             >
               Never show word &quot;{gradingResult.reviewItem.vocab?.word}&quot; again
             </Button>
-          </div>
-        )}
+          </div> : null}
       </div>
     </div>
   );

@@ -159,7 +159,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const verbText = `${count} similar verb${count > 1 ? 's' : ''}`;
         let message: string;
 
-        if (conjugationType) {
+        if (conjugationType !== undefined && conjugationType !== '') {
           const conjugationLabel = CONJUGATION_LABELS[conjugationType];
           message = `Moved ${verbText} (${conjugationLabel}) up in the queue`;
         } else if (endingKana === 'no-kana-ending') {
@@ -189,8 +189,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       for (let i = draft.currentIndex + 1; i < draft.queue.length; i++) {
         const item = draft.queue[i];
-        if (item.type !== 'grammar' && item.vocab && item.vocab.word === word) {
-          if (!conjugationType || item.conjugationType === conjugationType) {
+        if (item.type !== 'grammar' && item.vocab?.word === word) {
+          if (conjugationType === undefined || conjugationType === '' || item.conjugationType === conjugationType) {
             indicesToRemove.push(i);
           }
         }

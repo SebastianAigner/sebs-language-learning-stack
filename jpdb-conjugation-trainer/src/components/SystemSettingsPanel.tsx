@@ -27,7 +27,7 @@ export function SystemSettingsPanel() {
   };
 
   const handleCustomModelBlur = (value: string) => {
-    if (value.trim() && value.trim() !== config.model) {
+    if (value.trim() !== '' && value.trim() !== config.model) {
       // Clear LLM cache when model changes
       clearCache();
       updateModel(value.trim());
@@ -86,15 +86,13 @@ export function SystemSettingsPanel() {
               <option value="openai/gpt-oss-120b:nitro:xhigh">GPT-OSS 120B (Nitro, xhigh reasoning)</option>
               <option value="custom">Custom</option>
             </select>
-            {isCustomModel && (
-              <Input
+            {isCustomModel ? <Input
                 type="text"
                 id="custom-model"
                 placeholder="Enter custom model..."
                 defaultValue={config.model}
                 onBlur={(e) => handleCustomModelBlur(e.target.value)}
-              />
-            )}
+              /> : null}
           </div>
         </div>
       </div>

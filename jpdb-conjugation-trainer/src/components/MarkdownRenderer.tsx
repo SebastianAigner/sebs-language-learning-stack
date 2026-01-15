@@ -55,7 +55,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       };
 
       return (
-        <div key={index} style={headingStyles[level] || headingStyles[6]}>
+        <div key={index} style={headingStyles[level] ?? headingStyles[6]}>
           {parts}
         </div>
       );
@@ -128,8 +128,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
           if (!currentMatch) break;
 
-          const content = currentMatch[2];
-          const parts = parseInlineFormatting(content);
+          const listContent = currentMatch[2];
+          const parts = parseInlineFormatting(listContent);
 
           listItems.push(
             <li key={j} style={{ marginBottom: '6px' }}>

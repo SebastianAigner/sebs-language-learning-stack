@@ -344,9 +344,9 @@ Then add です for the polite form:
 
 export function getConjugationInstruction(type: ConjugationType, wordType: WordType): string {
   if (wordType === 'adjective') {
-    return ADJECTIVE_CONJUGATION_INSTRUCTIONS[type] || '';
+    return ADJECTIVE_CONJUGATION_INSTRUCTIONS[type] ?? '';
   }
-  return VERB_CONJUGATION_INSTRUCTIONS[type] || '';
+  return VERB_CONJUGATION_INSTRUCTIONS[type] ?? '';
 }
 
 // Keeping it for backward compatibility if any component still uses it directly

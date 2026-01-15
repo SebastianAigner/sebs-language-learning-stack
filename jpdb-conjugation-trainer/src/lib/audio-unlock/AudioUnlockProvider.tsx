@@ -34,14 +34,13 @@ export function AudioUnlockProvider({
     try {
       let audio: HTMLAudioElement;
 
-      if (unlockAudioUrl) {
+      if (unlockAudioUrl !== undefined && unlockAudioUrl !== '') {
         // Use provided unlock audio file
         audio = new Audio(unlockAudioUrl);
         audio.volume = 0.01; // Very quiet
       } else {
         // Create silent audio blob
-        const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const audioContext = new AudioContextClass();
+        const audioContext = new AudioContext();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
         gainNode.gain.value = 0.001; // Nearly silent

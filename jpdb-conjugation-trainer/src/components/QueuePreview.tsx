@@ -28,7 +28,7 @@ export const QueuePreview = memo(function QueuePreview() {
         onToggle={(e) => setIsOpen((e.target as HTMLDetailsElement).open)}
       >
         <summary>
-          Upcoming Reviews{isOpen && ` (${upcomingItems.length})`}
+          Upcoming Reviews{isOpen ? ` (${upcomingItems.length})` : null}
         </summary>
         <div id="queue-preview">
           {upcomingItems.length === 0 ? (
@@ -47,14 +47,12 @@ export const QueuePreview = memo(function QueuePreview() {
                     {item.type === 'grammar' ? (
                       <>
                         {item.grammarCard?.description}
-                        {item.variant && ` ${item.variant}`}
+                        {item.variant !== undefined && item.variant !== '' ? ` ${item.variant}` : null}
                       </>
                     ) : item.vocab?.word}
-                    {item.isRescheduled && (
-                      <span className="reschedule-badge" title={`Rescheduled (attempt ${item.rescheduleIteration})`}>
+                    {item.isRescheduled ? <span className="reschedule-badge" title={`Rescheduled (attempt ${item.rescheduleIteration})`}>
                         🔄
-                      </span>
-                    )}
+                      </span> : null}
                   </div>
                   <div className="queue-item-form">
                     {item.type === 'grammar' ? 'Grammar Task' : CONJUGATION_LABELS[item.conjugationType!]}

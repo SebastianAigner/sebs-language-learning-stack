@@ -1,5 +1,4 @@
 import type { GradingResult } from './grader';
-import type { ConjugationType } from './types';
 
 const CACHE_KEY = 'jpdb-conjugation-trainer-llm-cache';
 const CACHE_VERSION = 1;
@@ -14,14 +13,14 @@ interface Cache {
   entries: Record<string, CacheEntry>;
 }
 
-function getCacheKey(word: string, conjugationType: ConjugationType | string, userAnswer: string): string {
+function getCacheKey(word: string, conjugationType: string, userAnswer: string): string {
   return `${word}:${conjugationType}:${userAnswer}`;
 }
 
 function loadCache(): Cache {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) {
+    if (cached === null || cached === '') {
       return { version: CACHE_VERSION, entries: {} };
     }
 
@@ -49,17 +48,17 @@ function saveCache(cache: Cache): void {
 
 export function getCachedResult(
   word: string,
-  conjugationType: ConjugationType | string,
+  conjugationType: string,
   userAnswer: string
 ): GradingResult | null {
   const cache = loadCache();
   const key = getCacheKey(word, conjugationType, userAnswer);
-  const entry = cache.entries[key];
 
-  if (!entry) {
+  if (!(key in cache.entries)) {
     return null;
   }
 
+  const entry = cache.entries[key];
   // Cache hit
   console.log('LLM cache hit:', key);
   return entry.result;
@@ -67,7 +66,7 @@ export function getCachedResult(
 
 export function setCachedResult(
   word: string,
-  conjugationType: ConjugationType | string,
+  conjugationType: string,
   userAnswer: string,
   result: GradingResult
 ): void {
@@ -117,11 +116,14 @@ export function getRecentCacheEntries(limit: number = 5): CacheEntryDisplay[] {
     .map(([key, entry]) => {
       // Parse the key: "word:conjugationType:userAnswer"
       const parts = key.split(':');
+      const word = parts[0] ?? '';
+      const conjugationType = parts[1] ?? '';
+      const userAnswer = parts[2] ?? '';
       return {
         key,
-        word: parts[0] || '',
-        conjugationType: parts[1] || '',
-        userAnswer: parts[2] || '',
+        word,
+        conjugationType,
+        userAnswer,
         isCorrect: entry.result.isCorrect,
         correctAnswer: entry.result.correctAnswer,
         timestamp: entry.timestamp

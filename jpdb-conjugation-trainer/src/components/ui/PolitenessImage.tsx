@@ -7,7 +7,7 @@ interface PolitenessImageProps {
 }
 
 export function PolitenessImage({ conjugationType, isCasual, isPolite }: PolitenessImageProps) {
-  if (!conjugationType || (!isCasual && !isPolite)) {
+  if (conjugationType === undefined || (!isCasual && !isPolite)) {
     return null;
   }
 
@@ -26,22 +26,16 @@ export function PolitenessImage({ conjugationType, isCasual, isPolite }: Politen
         alt={alt}
         className={`politeness-image ${isPast ? 'grayscale' : ''}`}
       />
-      {isNegative && (
-        <div className="overlay-tr" title="Negative">
+      {isNegative ? <div className="overlay-tr" title="Negative">
           ❌
-        </div>
-      )}
-      {isAffirmative && (
-        <div className="overlay-tr" title="Affirmative">
+        </div> : null}
+      {isAffirmative ? <div className="overlay-tr" title="Affirmative">
           ✅
-        </div>
-      )}
-      {(isPast || isProgressive) && (
-        <div className="overlay-br">
-          {isPast && <span title="Past">🕰️</span>}
-          {isProgressive && <span title="Progressive">⏩</span>}
-        </div>
-      )}
+        </div> : null}
+      {(isPast || isProgressive) ? <div className="overlay-br">
+          {isPast ? <span title="Past">🕰️</span> : null}
+          {isProgressive ? <span title="Progressive">⏩</span> : null}
+        </div> : null}
     </div>
   );
 }

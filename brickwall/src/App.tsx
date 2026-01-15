@@ -13,7 +13,7 @@ const MODEL_DISPLAY_NAMES: { [key: string]: string } = {
 }
 
 const getModelDisplayName = (modelId: string): string => {
-  return MODEL_DISPLAY_NAMES[modelId] || modelId
+  return MODEL_DISPLAY_NAMES[modelId] ?? modelId
 }
 
 function App() {
@@ -55,7 +55,7 @@ function App() {
 
   // Determine message type for status indicator
   const getMessageStatus = (messageText: string) => {
-    if (!messageText.trim()) return null
+    if (messageText.trim() === '') return null
     
     const sendFollowupMessage = messageText.trim() === '!ff' || messageText.trim() === '！' || messageText.trim() === '!'
     const continueConversation = (messageText.includes('!f') && !sendFollowupMessage) || messageText.includes('@')
@@ -129,7 +129,7 @@ function App() {
   // Restore saved values from localStorage on page load
   useEffect(() => {
     const savedApiKey = localStorage.getItem('converser-api-key')
-    if (savedApiKey) {
+    if (savedApiKey !== null && savedApiKey !== '') {
       setApiKey(savedApiKey)
     }
 
@@ -170,9 +170,9 @@ function App() {
   }, [])
 
   // Toast management
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (toastMessage: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now()
-    setToasts(prev => [...prev, { id, message, type }])
+    setToasts(prev => [...prev, { id, message: toastMessage, type }])
     
     // Auto-dismiss after 3 seconds
     setTimeout(() => {
@@ -201,7 +201,7 @@ function App() {
   }
 
   const saveApiKey = () => {
-    if (apiKey.trim()) {
+    if (apiKey.trim() !== '') {
       localStorage.setItem('converser-api-key', apiKey)
       showToast('API key saved to local storage')
     }
@@ -209,7 +209,7 @@ function App() {
 
   const restoreApiKey = () => {
     const savedKey = localStorage.getItem('converser-api-key')
-    if (savedKey) {
+    if (savedKey !== null && savedKey !== '') {
       setApiKey(savedKey)
       showToast('API key restored from local storage')
     } else {
@@ -339,14 +339,14 @@ function App() {
   }
 
   const askFollowup = async () => {
-    if (!followupText.trim() || !apiKey.trim()) return
-    
+    if (followupText.trim() === '' || apiKey.trim() === '') return
+
     const userMessage = { text: followupText.trim(), isUser: true }
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
 
     // Use active conversation model if set, otherwise use selected model
-    const modelToUse = activeConversationModel || selectedModel
+    const modelToUse = activeConversationModel ?? selectedModel
 
     // Show toast indicating which model is being used
     showToast(`Sending follow-up to ${getModelDisplayName(modelToUse)}`)
@@ -363,15 +363,15 @@ function App() {
   }
 
   const askAside = async () => {
-    if (!message.trim() || !apiKey.trim()) return
-    
+    if (message.trim() === '' || apiKey.trim() === '') return
+
     const userMessage = { text: message.trim(), isUser: true }
     setMessages(prev => [...prev, userMessage])
     setMessage('')
     setIsLoading(true)
 
     // Use active conversation model if set, otherwise use selected model
-    const modelToUse = activeConversationModel || selectedModel
+    const modelToUse = activeConversationModel ?? selectedModel
 
     // Show toast indicating which model is being used
     showToast(`Sending aside to ${getModelDisplayName(modelToUse)}`)
@@ -389,7 +389,7 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (message.trim() && apiKey.trim()) {
+    if (message.trim() !== '' && apiKey.trim() !== '') {
       const sendFollowupMessage = message.trim() === '!ff' || message.trim() === '！' || message.trim() === '!'
       const continueConversation = (message.includes('!f') && !sendFollowupMessage) || message.includes('@')
       const asideMessage = message.startsWith('#')
@@ -397,7 +397,7 @@ function App() {
       
       // If !ff flag is used, send the followup message instead
       if (sendFollowupMessage) {
-        if (!followupText.trim()) {
+        if (followupText.trim() === '') {
           showToast('No followup message to send', 'error')
           return
         }
@@ -417,7 +417,7 @@ function App() {
         setMessage('')
         setIsLoading(true)
 
-        const modelToUse = activeConversationModel || selectedModel
+        const modelToUse = activeConversationModel ?? selectedModel
         showToast(`Sending aside to ${getModelDisplayName(modelToUse)}`)
 
         try {
@@ -432,9 +432,9 @@ function App() {
       }
       
       // Combine prepend + message + append for sending to API (only for new conversations)
-      const fullMessage = continueConversation 
-        ? cleanMessage 
-        : `${prependText}${prependText ? ' ' : ''}${cleanMessage}${appendText ? ' ' : ''}${appendText}`.trim()
+      const fullMessage = continueConversation
+        ? cleanMessage
+        : `${prependText}${prependText !== '' ? ' ' : ''}${cleanMessage}${appendText !== '' ? ' ' : ''}${appendText}`.trim()
       
       const userMessage = { 
         text: cleanMessage, 
@@ -443,8 +443,8 @@ function App() {
       }
       
       // Determine model to use BEFORE updating state
-      const modelToUse = continueConversation 
-        ? (activeConversationModel || selectedModel)
+      const modelToUse = continueConversation
+        ? (activeConversationModel ?? selectedModel)
         : selectedModel
 
       if (continueConversation) {
@@ -516,12 +516,12 @@ function App() {
     setMessages(prev => [...prev, assistantMessage])
 
     try {
-      while (true) {
+      for (;;) {
         const { done, value } = await reader.read()
         if (done) break
 
         const chunk = new TextDecoder().decode(value)
-        const lines = chunk.split('\n').filter(line => line.trim())
+        const lines = chunk.split('\n').filter(line => line.trim() !== '')
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -531,7 +531,7 @@ function App() {
             try {
               const parsed = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] }
               const content = parsed.choices?.[0]?.delta?.content
-              if (content) {
+              if (content !== undefined && content !== '') {
                 assistantMessage.text += content
                 setMessages(prev => {
                   const newMessages = [...prev]
@@ -606,7 +606,7 @@ function App() {
         
         <form onSubmit={(e) => void handleSubmit(e)} className="chat-input">
           <div className="message-input-with-button">
-            {messageStatus && (
+            {messageStatus !== null && (
               <div className={`message-status-indicator ${messageStatus.toLowerCase()}`}>
                 {messageStatus}
               </div>
@@ -628,7 +628,7 @@ function App() {
             <button
               type="button"
               onClick={() => void askAside()}
-              disabled={isLoading || !message.trim() || !apiKey.trim()}
+              disabled={isLoading || message.trim() === '' || apiKey.trim() === ''}
               className="ask-aside-button"
               title="Ask without prepend/append text"
             >
@@ -662,7 +662,7 @@ function App() {
       <div className={`messages-container ${showGreenFlash ? 'green-flash' : ''}`}>
         {messages.length > 0 && (
           <div className="conversation-model-indicator">
-            Using: <strong>{getModelDisplayName(activeConversationModel || selectedModel)}</strong>
+            Using: <strong>{getModelDisplayName(activeConversationModel ?? selectedModel)}</strong>
           </div>
         )}
         {messages.map((msg, index) => (
@@ -671,7 +671,7 @@ function App() {
               <div className="user-message-content">
                 <strong>{userName}: </strong>
                 <span>{msg.text}</span>
-                {msg.fullText && (
+                {msg.fullText !== undefined && (
                   <>
                     <button 
                       className="copy-message-button"
@@ -741,7 +741,7 @@ function App() {
         <div className="followup-buttons">
           <button
             onClick={() => void askFollowup()}
-            disabled={isLoading || !followupText.trim() || !apiKey.trim()}
+            disabled={isLoading || followupText.trim() === '' || apiKey.trim() === ''}
             className="followup-button"
           >
             Ask Follow-up

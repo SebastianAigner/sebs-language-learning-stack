@@ -9,7 +9,7 @@ export const RawOutputPanel = memo(function RawOutputPanel({ rawOutput }: RawOut
     <div id="raw-output-panel">
       <details id="raw-output-section">
         <summary>Raw LLM Output</summary>
-        <pre className="raw-output-content">{rawOutput || 'No output yet'}</pre>
+        <pre className="raw-output-content">{rawOutput ?? 'No output yet'}</pre>
       </details>
     </div>
   );

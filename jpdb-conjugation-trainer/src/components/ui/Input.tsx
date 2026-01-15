@@ -8,8 +8,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, className = '', id, style, children: _children, ...props }, ref) => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-        {label && (
-          <label 
+        {label !== undefined && label !== '' ? <label 
             htmlFor={id} 
             style={{ 
               display: 'block', 
@@ -21,8 +20,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             }}
           >
             {label}
-          </label>
-        )}
+          </label> : null}
         <input
           ref={ref}
           id={id}

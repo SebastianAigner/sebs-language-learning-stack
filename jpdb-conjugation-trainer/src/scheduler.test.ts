@@ -87,7 +87,7 @@ describe('Scheduler', () => {
     it('should track consecutive correct answers', () => {
       const state = createInitialState();
       state.queue = initializeQueue([mockVerbs[0]]);
-      const itemKey = `${state.queue[0]!.vocab!.word}-${state.queue[0]!.conjugationType}`;
+      const itemKey = `${state.queue[0].vocab!.word}-${state.queue[0].conjugationType}`;
 
       const newState = handleGoodGrade(state);
 
@@ -186,7 +186,7 @@ describe('Scheduler', () => {
     it('should reset consecutive correct count', () => {
       let state = createInitialState();
       state.queue = initializeQueue([mockVerbs[0]]);
-      const itemKey = `${state.queue[0]!.vocab!.word}-${state.queue[0]!.conjugationType}`;
+      const itemKey = `${state.queue[0].vocab!.word}-${state.queue[0].conjugationType}`;
 
       // First get it right
       state = handleGoodGrade(state);
@@ -254,8 +254,8 @@ describe('Scheduler', () => {
       // verb2 has same type and same ending as verb1. It should be moved to front of the remaining queue.
       // So new queue should start with verb2.
       
-      expect(newState.queue[0]!.vocab!.word).toBe('買う');
-      expect(newState.queue[1]!.vocab!.word).toBe('高い');
+      expect(newState.queue[0].vocab!.word).toBe('買う');
+      expect(newState.queue[1].vocab!.word).toBe('高い');
     });
   });
 

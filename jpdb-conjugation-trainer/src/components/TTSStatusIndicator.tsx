@@ -26,7 +26,7 @@ export function TTSStatusIndicator({ ttsServiceUrl }: TTSStatusIndicatorProps) {
         } else {
           setIsOnline(false);
         }
-      } catch (error) {
+      } catch {
         setIsOnline(false);
       }
     };

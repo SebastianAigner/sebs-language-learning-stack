@@ -46,7 +46,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     return {
       ...DEFAULT_CONFIG,
       ...saved,
-      apiBaseUrl: autoDetectedUrl || saved?.apiBaseUrl || DEFAULT_CONFIG.apiBaseUrl,
+      apiBaseUrl: autoDetectedUrl ?? saved?.apiBaseUrl ?? DEFAULT_CONFIG.apiBaseUrl,
       blacklist,
       alwaysAddVerbs,
       alwaysAddAdjectives
@@ -56,7 +56,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   // Auto-save config whenever it changes (skip initial render)
   useEffect(() => {
     // Skip saving default config on mount
-    if (config.model === 'x-ai/grok-4' && config.apiKey === '' && !config.autoAdvance && !config.blacklist && !config.alwaysAddVerbs && !config.alwaysAddAdjectives) {
+    if (config.model === 'x-ai/grok-4' && config.apiKey === '' && !config.autoAdvance && config.blacklist === '' && config.alwaysAddVerbs === '' && config.alwaysAddAdjectives === '') {
       return;
     }
 
@@ -133,14 +133,11 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
   // Load API key on mount
   useEffect(() => {
-    const loadApiKey = async () => {
-      // Use environment variable (defined in vite.config.ts)
-      if (process.env.OPENROUTER_API_KEY) {
-        updateApiKey(process.env.OPENROUTER_API_KEY);
-      }
-    };
-
-    void loadApiKey();
+    // Use environment variable (defined in vite.config.ts)
+    const envApiKey = process.env.OPENROUTER_API_KEY;
+    if (envApiKey !== undefined && envApiKey !== '') {
+      updateApiKey(envApiKey);
+    }
   }, [updateApiKey]);
 
   const value: ConfigContextValue = {

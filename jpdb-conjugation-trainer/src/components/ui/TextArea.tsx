@@ -7,8 +7,7 @@ interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 export function TextArea({ label, className = '', id, style, children: _children, ...props }: TextAreaProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-      {label && (
-        <label 
+      {label !== undefined && label !== '' ? <label 
           htmlFor={id} 
           style={{ 
             display: 'block', 
@@ -20,8 +19,7 @@ export function TextArea({ label, className = '', id, style, children: _children
           }}
         >
           {label}
-        </label>
-      )}
+        </label> : null}
       <textarea
         id={id}
         className={className}

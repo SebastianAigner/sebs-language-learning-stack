@@ -50,8 +50,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     // Basic protection against notification loops/spam
     const now = Date.now();
     if (
-      lastNotification.current &&
-      lastNotification.current.message === message &&
+      lastNotification.current?.message === message &&
       now - lastNotification.current.timestamp < 500 // Don't show same message within 500ms
     ) {
       return;
@@ -80,21 +79,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleGlobalError = (event: ErrorEvent) => {
       event.preventDefault();
+      const error = event.error as Error | undefined;
       showNotification(
         'error',
         event.message,
         10000,
-        event.error?.stack
+        error?.stack
       );
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       event.preventDefault();
+      const reason = event.reason as Error | undefined;
       showNotification(
         'error',
-        `Unhandled Promise Rejection: ${event.reason}`,
+        `Unhandled Promise Rejection: ${String(event.reason)}`,
         10000,
-        event.reason?.stack
+        reason?.stack
       );
     };
 
@@ -190,8 +191,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                   ×
                 </Button>
               </div>
-              {notification.stack && (
-                <details style={{ marginTop: '4px' }}>
+              {notification.stack !== undefined && notification.stack !== '' ? <details style={{ marginTop: '4px' }}>
                   <summary style={{ cursor: 'pointer', fontSize: '12px', opacity: 0.8 }}>Stack trace</summary>
                   <pre style={{
                     marginTop: '8px',
@@ -205,16 +205,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                   }}>
                     {notification.stack}
                   </pre>
-                </details>
-              )}
+                </details> : null}
             </Alert>
           ))}
         </div>
       )}
 
       {/* Confirmation dialog */}
-      {confirmDialog && (
-        <div style={{
+      {confirmDialog ? <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -256,8 +254,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               </Button>
             </div>
           </Card>
-        </div>
-      )}
+        </div> : null}
 
       {/* Toast Archive Sidebar */}
       <div className="toast-sidebar-container">

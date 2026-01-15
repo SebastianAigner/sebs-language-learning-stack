@@ -62,8 +62,7 @@ export const Header = memo(function Header({ showCorrectAnimation, isGrading, is
             )}
           </div>
         </div>
-        {isGrading && (
-          <div style={{
+        {isGrading ? <div style={{
             position: 'absolute',
             left: '50%',
             transform: 'translateX(-50%)',
@@ -73,18 +72,15 @@ export const Header = memo(function Header({ showCorrectAnimation, isGrading, is
               alt="Thinking..." 
               style={{ width: '32px', height: '32px' }} 
             />
-          </div>
-        )}
-        {showCorrectAnimation && (
-          <div style={{
+          </div> : null}
+        {showCorrectAnimation ? <div style={{
             position: 'absolute',
             left: '50%',
             transform: 'translateX(-50%)',
             fontSize: '32px'
           }}>
             ✓
-          </div>
-        )}
+          </div> : null}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
           <TTSStatusIndicator ttsServiceUrl={config.ttsServiceUrl} />
           <JPDBStatusIndicator jpdbServiceUrl={config.apiBaseUrl} />

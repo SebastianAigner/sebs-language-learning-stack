@@ -129,7 +129,7 @@ export function useResultActions(options: {
         .filter(line => line.length > 0)
     );
 
-    const entry = conjugationType ? `${word}#${conjugationType}` : word;
+    const entry = conjugationType !== undefined && conjugationType !== '' ? `${word}#${conjugationType}` : word;
 
     // Add the entry if not already present
     if (!blacklistSet.has(entry)) {

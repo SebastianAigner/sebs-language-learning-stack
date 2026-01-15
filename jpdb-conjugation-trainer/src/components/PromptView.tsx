@@ -42,7 +42,7 @@ export function PromptView({
 
   const handleSubmit = async () => {
     const userAnswer = inputRef.current?.value.trim();
-    if (!userAnswer) return;
+    if (userAnswer === undefined || userAnswer === '') return;
     await onGrade(userAnswer);
   };
 
@@ -80,7 +80,7 @@ export function PromptView({
         <div className="grammar-display">
           <div className="grammar-description">
             {currentItem.grammarCard?.description}
-            {currentItem.variant && ` ${currentItem.variant}`}
+            {currentItem.variant !== undefined && currentItem.variant !== '' ? ` ${currentItem.variant}` : null}
           </div>
         </div>
       ) : (
@@ -114,8 +114,7 @@ export function PromptView({
         />
       ) : (
         <>
-          {(isGrammar ? !!currentItem.grammarCard?.instructions : true) && (
-            <div
+          {(isGrammar ? currentItem.grammarCard?.instructions !== undefined && currentItem.grammarCard.instructions !== '' : true) ? <div
               style={{
                 marginTop: '20px',
                 textAlign: 'center',
@@ -134,14 +133,12 @@ export function PromptView({
                   display: 'inline-block'
                 }}
               />
-            </div>
-          )}
-          {showInstructions && (
-            isGrammar ? (
+            </div> : null}
+          {showInstructions ? isGrammar ? (
               <div className="tutorial-banner">
                 <img src="/img/beginner.svg" alt="Beginner" className="tutorial-image" />
                 <div className="tutorial-content">
-                  <MarkdownRenderer content={currentItem.grammarCard?.instructions || ''} />
+                  <MarkdownRenderer content={currentItem.grammarCard?.instructions ?? ''} />
                 </div>
               </div>
             ) : (
@@ -149,8 +146,7 @@ export function PromptView({
                 conjugationType={currentItem.conjugationType!}
                 wordType={currentItem.vocab!.type}
               />
-            )
-          )}
+            ) : null}
         </>
       )}
       <StreakDisplay streak={currentStreak} />

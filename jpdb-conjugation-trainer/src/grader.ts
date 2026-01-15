@@ -1,6 +1,5 @@
 import { OpenRouter } from '@openrouter/sdk';
-import type { ChatGenerationParams, ChatStreamingResponseChunkData } from '@openrouter/sdk/models';
-import type { EventStream } from '@openrouter/sdk/lib/event-streams';
+import type { ChatGenerationParams } from '@openrouter/sdk/models';
 import type { ConjugationType} from './types';
 import { CONJUGATION_LABELS } from './types';
 import { getGradingPrompt, getGrammarGradingPrompt } from './prompts';
@@ -86,7 +85,7 @@ async function gradeGenericStreaming(
     }
   }
 
-  const hasReasoning = !!reasoningEffort;
+  const hasReasoning = reasoningEffort !== undefined;
 
   try {
     // Build request parameters with proper OpenRouter SDK types
@@ -100,14 +99,14 @@ async function gradeGenericStreaming(
       ],
       maxTokens: 100000,
       stream: true,
-      ...(reasoningEffort && {
+      ...(reasoningEffort !== undefined && {
         reasoning: {
           effort: reasoningEffort
         }
       })
     };
 
-    const stream = await client.chat.send(requestParams) as EventStream<ChatStreamingResponseChunkData>;
+    const stream = await client.chat.send(requestParams);
 
     let fullContent = '';
     let fullReasoning = '';
@@ -117,9 +116,7 @@ async function gradeGenericStreaming(
     let currentEmojiIndex = 0;
 
     for await (const chunk of stream) {
-      const delta = chunk.choices?.[0]?.delta;
-
-      if (!delta) continue;
+      const delta = chunk.choices[0]?.delta;
 
       // Debug logging for reasoning
       if (hasReasoning) {
@@ -127,46 +124,48 @@ async function gradeGenericStreaming(
       }
 
       // Check for reasoning tokens
-      if ('reasoning' in delta && delta.reasoning) {
+      const reasoning = 'reasoning' in delta ? delta.reasoning : undefined;
+      if (reasoning !== undefined && reasoning !== null && reasoning !== '') {
         if (!inReasoning) {
           inReasoning = true;
           callbacks.onReasoningStart?.();
 
           // Start thinking indicator if no reasoning content yet
-          if (!delta.reasoning.trim()) {
+          if (reasoning.trim() === '') {
             thinkingInterval = setInterval(() => {
               callbacks.onThinking?.();
               currentEmojiIndex = (currentEmojiIndex + 1) % THINKING_EMOJIS.length;
             }, 500);
           } else {
-            fullReasoning += delta.reasoning;
-            callbacks.onReasoningToken?.(delta.reasoning);
+            fullReasoning += reasoning;
+            callbacks.onReasoningToken?.(reasoning);
           }
         } else {
           // Stop thinking indicator if we get actual reasoning
-          if (thinkingInterval && delta.reasoning.trim()) {
+          if (thinkingInterval !== null && reasoning.trim() !== '') {
             clearInterval(thinkingInterval);
             thinkingInterval = null;
           }
-          fullReasoning += delta.reasoning;
-          callbacks.onReasoningToken?.(delta.reasoning);
+          fullReasoning += reasoning;
+          callbacks.onReasoningToken?.(reasoning);
         }
       }
 
       // Check for content tokens
-      if (delta.content) {
+      const content = delta.content;
+      if (content !== undefined && content !== null && content !== '') {
         // First content token - stop reasoning display
         if (!hasSeenContent && inReasoning) {
           hasSeenContent = true;
-          if (thinkingInterval) {
+          if (thinkingInterval !== null) {
             clearInterval(thinkingInterval);
             thinkingInterval = null;
           }
           callbacks.onReasoningEnd?.();
         }
 
-        fullContent += delta.content;
-        callbacks.onContentToken?.(delta.content);
+        fullContent += content;
+        callbacks.onContentToken?.(content);
       }
     }
 
@@ -186,7 +185,7 @@ async function gradeGenericStreaming(
       console.log('Final fullReasoning:', fullReasoning);
     }
 
-    const rawOutput = fullContent || 'No response from model';
+    const rawOutput = fullContent !== '' ? fullContent : 'No response from model';
 
     // Extract JSON from code block
     const codeBlockMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
@@ -199,8 +198,8 @@ async function gradeGenericStreaming(
 
     let parsedJson: { correct: boolean; correctAnswer: string; reading?: string; explanation?: string };
     try {
-      parsedJson = JSON.parse(codeBlockMatch[1]);
-    } catch (e) {
+      parsedJson = JSON.parse(codeBlockMatch[1]) as typeof parsedJson;
+    } catch {
       throw new GradingError('Failed to parse JSON from LLM response', rawOutput);
     }
 
@@ -227,7 +226,7 @@ async function gradeGenericStreaming(
       reading: parsedJson.reading,
       explanation: parsedJson.explanation,
       userAnswer: userAnswer,
-      freeText: freeText || undefined,
+      freeText: freeText !== '' ? freeText : undefined,
       rawOutput: rawOutput
     };
   } catch (error) {

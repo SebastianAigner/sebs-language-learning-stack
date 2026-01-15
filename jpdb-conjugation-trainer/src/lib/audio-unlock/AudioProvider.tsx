@@ -20,9 +20,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
   const streamingAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const getStreamingAudio = () => {
-    if (streamingAudioRef.current === null) {
-      streamingAudioRef.current = new Audio();
-    }
+    streamingAudioRef.current ??= new Audio();
     return streamingAudioRef.current;
   };
 
@@ -33,7 +31,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
     } = options;
 
     const now = Date.now();
-    const lastPlayTime = lastPlayTimes.current.get(url) || 0;
+    const lastPlayTime = lastPlayTimes.current.get(url) ?? 0;
 
     // Prevent duplicate sounds within debounce window
     if (now - lastPlayTime < debounceMs) {
@@ -45,7 +43,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
     try {
       const audio = new Audio(url);
       audio.volume = volume;
-      audio.play().catch(error => {
+      audio.play().catch((error: Error) => {
         // Log specific error type to diagnose issues:
         // - NotAllowedError: autoplay blocked / audio not unlocked
         // - NotSupportedError: media format/headers issue
@@ -79,8 +77,8 @@ export function AudioProvider({ children }: AudioProviderProps) {
       // - NotSupportedError: media format/headers issue
       // - AbortError: source changed or competing playback
       console.warn(
-        `[audio-unlock] Failed to play streaming audio [${err?.name || 'Unknown'}]:`,
-        err?.message || err
+        `[audio-unlock] Failed to play streaming audio [${err.name !== '' ? err.name : 'Unknown'}]:`,
+        err.message !== '' ? err.message : err
       );
       throw error;
     }

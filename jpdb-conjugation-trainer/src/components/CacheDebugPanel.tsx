@@ -48,7 +48,7 @@ export const CacheDebugPanel = memo(function CacheDebugPanel() {
                 {entries.map((entry) => (
                   <tr key={entry.key} className={entry.isCorrect ? 'cache-correct' : 'cache-incorrect'}>
                     <td className="cache-word">{entry.word}</td>
-                    <td className="cache-form">{CONJUGATION_LABELS[entry.conjugationType as ConjugationType] || entry.conjugationType}</td>
+                    <td className="cache-form">{CONJUGATION_LABELS[entry.conjugationType as ConjugationType]}</td>
                     <td className="cache-answer">{entry.userAnswer}</td>
                     <td className="cache-correct-answer">{entry.correctAnswer}</td>
                     <td className="cache-result">

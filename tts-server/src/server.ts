@@ -26,15 +26,16 @@ interface Config {
   maxTextLength: number;
 }
 
+const envPort = Number(process.env.TTS_SERVER_PORT ?? process.env.PORT);
 const CONFIG: Config = {
-  port: Number(process.env.TTS_SERVER_PORT || process.env.PORT) || 5065,
-  provider: (process.env.TTS_PROVIDER as 'elevenlabs' | 'azure') || 'azure',
+  port: !Number.isNaN(envPort) && envPort !== 0 ? envPort : 5065,
+  provider: (process.env.TTS_PROVIDER as 'elevenlabs' | 'azure' | undefined) ?? 'azure',
   // ElevenLabs settings
-  voiceId: process.env.VOICE_ID || '3JDquces8E8bkmvbh6Bc',
-  model: process.env.MODEL || 'eleven_flash_v2_5',
+  voiceId: process.env.VOICE_ID ?? '3JDquces8E8bkmvbh6Bc',
+  model: process.env.MODEL ?? 'eleven_flash_v2_5',
   // Azure settings
-  azureRegion: process.env.AZURE_REGION || 'swedencentral',
-  azureVoice: process.env.AZURE_VOICE || 'ja-JP-Nanami:DragonHDLatestNeural',
+  azureRegion: process.env.AZURE_REGION ?? 'swedencentral',
+  azureVoice: process.env.AZURE_VOICE ?? 'ja-JP-Nanami:DragonHDLatestNeural',
   // Common settings
   cacheDir: join(__dirname, '../cache'),
   maxTextLength: 500
@@ -86,19 +87,20 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Load API keys
-const ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY || '';
-const AZURE_API_KEY: string = process.env.AZURE_API_KEY || '';
+const ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY ?? '';
+const AZURE_API_KEY: string = process.env.AZURE_API_KEY ?? '';
 
 if (CONFIG.provider === 'elevenlabs') {
-  if (!ELEVENLABS_API_KEY) {
+  if (ELEVENLABS_API_KEY === '') {
     console.error('✗ ELEVENLABS_API_KEY not found in environment');
     console.error('  Please set ELEVENLABS_API_KEY in .env in the project root');
     process.exit(1);
   } else {
     console.log('✓ Loaded ElevenLabs API key from environment');
   }
-} else if (CONFIG.provider === 'azure') {
-  if (!AZURE_API_KEY) {
+} else {
+  // CONFIG.provider === 'azure'
+  if (AZURE_API_KEY === '') {
     console.error('✗ AZURE_API_KEY not found in environment');
     console.error('  Please set AZURE_API_KEY in .env in the project root');
     process.exit(1);
@@ -117,7 +119,7 @@ if (!existsSync(CONFIG.cacheDir)) {
  * Generate SHA-256 hash of text for cache key
  */
 function generateCacheKey(text: string, previousText?: string): string {
-  const cacheInput = previousText ? `${previousText}::${text}` : text;
+  const cacheInput = previousText !== undefined && previousText !== '' ? `${previousText}::${text}` : text;
   return createHash('sha256').update(cacheInput).digest('hex');
 }
 
@@ -130,7 +132,7 @@ function saveCacheMetadata(hash: string, text: string, size: number, previousTex
     created: new Date().toISOString(),
     size
   };
-  if (previousText) {
+  if (previousText !== undefined && previousText !== '') {
     metadata.previousText = previousText;
   }
   const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
@@ -173,11 +175,11 @@ function getCacheStats(): CacheStats {
     stats.totalSize += fileStat.size;
     const fileInfo: CacheFileInfo = {
       hash,
-      text: metadata?.text || 'Unknown',
+      text: metadata?.text ?? 'Unknown',
       size: fileStat.size,
-      created: metadata?.created || fileStat.birthtime.toISOString()
+      created: metadata?.created ?? fileStat.birthtime.toISOString()
     };
-    if (metadata?.previousText) {
+    if (metadata?.previousText !== undefined && metadata.previousText !== '') {
       fileInfo.previousText = metadata.previousText;
     }
     stats.files.push(fileInfo);
@@ -195,13 +197,13 @@ function getCacheStats(): CacheStats {
 async function callElevenLabsAPI(text: string, previousText?: string, seed?: number): Promise<Buffer> {
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${CONFIG.voiceId}`;
 
-  console.log(`Calling ElevenLabs API for text: "${text}"${previousText ? ` (context: "${previousText}")` : ''}${seed !== undefined ? ` (seed: ${seed})` : ''}`);
+  console.log(`Calling ElevenLabs API for text: "${text}"${previousText !== undefined && previousText !== '' ? ` (context: "${previousText}")` : ''}${seed !== undefined ? ` (seed: ${seed})` : ''}`);
 
   // When using context, add markers to help with pronunciation flow
   let actualText = text;
   let actualPreviousText = previousText;
 
-  if (previousText) {
+  if (previousText !== undefined && previousText !== '') {
     actualPreviousText = `${previousText}。。。`;
     actualText = `。。。${text}`;
   }
@@ -216,7 +218,7 @@ async function callElevenLabsAPI(text: string, previousText?: string, seed?: num
     }
   };
 
-  if (actualPreviousText) {
+  if (actualPreviousText !== undefined && actualPreviousText !== '') {
     requestBody.previous_text = actualPreviousText;
   }
 
@@ -262,7 +264,7 @@ function escapeXml(unsafe: string): string {
  * Call Azure Speech API to generate TTS
  */
 async function callAzureSpeechAPI(text: string, previousText?: string): Promise<Buffer> {
-  console.log(`Calling Azure Speech API for text: "${text}"${previousText ? ` (with context: "${previousText}")` : ''}`);
+  console.log(`Calling Azure Speech API for text: "${text}"${previousText !== undefined && previousText !== '' ? ` (with context: "${previousText}")` : ''}`);
 
   return new Promise((resolve, reject) => {
     // Create speech config
@@ -277,7 +279,7 @@ async function callAzureSpeechAPI(text: string, previousText?: string): Promise<
     // Azure: Prepend previous text context at volume "silent" (0)
     // This provides context for the neural engine to produce more natural prosody
     const escapedText = escapeXml(text);
-    const contextSsml = previousText ? `<prosody volume="0.01">${escapeXml(previousText)}</prosody>` : '';
+    const contextSsml = previousText !== undefined && previousText !== '' ? `<prosody volume="0.01">${escapeXml(previousText)}</prosody>` : '';
     const ssml = `
       <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="ja-JP">
         <voice name="${CONFIG.azureVoice}">
@@ -320,16 +322,13 @@ async function generateAndCacheTTS(text: string, hash: string, previousText?: st
 
   if (CONFIG.provider === 'elevenlabs') {
     audioBuffer = await callElevenLabsAPI(text, previousText, seed);
-  } else if (CONFIG.provider === 'azure') {
+  } else {
+    // CONFIG.provider === 'azure'
     // Azure doesn't support seed parameter
     if (seed !== undefined) {
       console.warn('Note: Azure Speech API does not support seed parameter (ignored)');
     }
     audioBuffer = await callAzureSpeechAPI(text, previousText);
-  } else {
-    // Exhaustive check - this branch should never be reached
-    const _exhaustiveCheck: never = CONFIG.provider;
-    throw new Error(`Unknown TTS provider: ${String(_exhaustiveCheck)}`);
   }
 
   // Save to cache
@@ -367,7 +366,7 @@ app.get('/tts', (req: Request, res: Response): void => {
   const { text, previous_text } = req.query;
 
   // Validate input
-  if (!text) {
+  if (text === undefined || text === '') {
     res.status(400).json({ error: 'Missing "text" parameter' });
     return;
   }
@@ -385,7 +384,7 @@ app.get('/tts', (req: Request, res: Response): void => {
   }
 
   const textValue = text;
-  const previousText = previous_text && typeof previous_text === 'string' ? previous_text : undefined;
+  const previousText = previous_text !== undefined && typeof previous_text === 'string' ? previous_text : undefined;
 
   // Generate cache key
   const hash = generateCacheKey(textValue, previousText);
@@ -516,7 +515,7 @@ app.get('/api/cache/audio/:hash', (req: Request, res: Response) => {
 
   const metadata = loadCacheMetadata(hash);
   if (req.query.download === 'true') {
-    const sanitizedText = (metadata?.text || 'tts_audio').replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
+    const sanitizedText = (metadata?.text ?? 'tts_audio').replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
     const filename = `${sanitizedText}.mp3`;
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
   }
@@ -534,13 +533,13 @@ app.get('/api/cache/audio/:hash', (req: Request, res: Response) => {
 app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res: Response): void => {
   const { text, previous_text } = req.body;
 
-  if (!text || typeof text !== 'string') {
+  if (text === undefined || text === '' || typeof text !== 'string') {
     res.status(400).json({ error: 'Missing "text" in request body' });
     return;
   }
 
   const textValue = text;
-  const previousText = previous_text && typeof previous_text === 'string' ? previous_text : undefined;
+  const previousText = previous_text !== undefined && typeof previous_text === 'string' ? previous_text : undefined;
 
   void (async (): Promise<void> => {
     try {
@@ -564,7 +563,7 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
       await generateAndCacheTTS(textValue, hash, previousText, randomSeed);
 
       let url = `/tts?text=${encodeURIComponent(textValue)}`;
-      if (previousText) {
+      if (previousText !== undefined && previousText !== '') {
         url += `&previous_text=${encodeURIComponent(previousText)}`;
       }
 
@@ -589,13 +588,13 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
 app.post('/api/test', (req: Request<unknown, unknown, TtsRequestBody>, res: Response): void => {
   const { text, previous_text } = req.body;
 
-  if (!text || typeof text !== 'string') {
+  if (text === undefined || text === '' || typeof text !== 'string') {
     res.status(400).json({ error: 'Missing "text" in request body' });
     return;
   }
 
   const textValue = text;
-  const previousText = previous_text && typeof previous_text === 'string' ? previous_text : undefined;
+  const previousText = previous_text !== undefined && typeof previous_text === 'string' ? previous_text : undefined;
 
   void (async (): Promise<void> => {
     try {
@@ -608,7 +607,7 @@ app.post('/api/test', (req: Request<unknown, unknown, TtsRequestBody>, res: Resp
       }
 
       let url = `/tts?text=${encodeURIComponent(textValue)}`;
-      if (previousText) {
+      if (previousText !== undefined && previousText !== '') {
         url += `&previous_text=${encodeURIComponent(previousText)}`;
       }
 
@@ -640,7 +639,8 @@ app.listen(CONFIG.port, () => {
   if (CONFIG.provider === 'elevenlabs') {
     console.log(`    Voice:    ${CONFIG.voiceId}`);
     console.log(`    Model:    ${CONFIG.model}`);
-  } else if (CONFIG.provider === 'azure') {
+  } else {
+    // CONFIG.provider === 'azure'
     console.log(`    Region:   ${CONFIG.azureRegion}`);
     console.log(`    Voice:    ${CONFIG.azureVoice}`);
   }

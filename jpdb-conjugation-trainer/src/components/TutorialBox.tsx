@@ -12,7 +12,7 @@ interface TutorialBoxProps {
 export function TutorialBox({ conjugationType, wordType, style }: TutorialBoxProps) {
   const instructions = getConjugationInstruction(conjugationType, wordType);
   
-  if (!instructions) {
+  if (instructions === '') {
     return null;
   }
 

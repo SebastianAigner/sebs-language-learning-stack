@@ -185,7 +185,7 @@ const ResultContainer = () => {
     return null;
   }
 
-  const isCurrentItem = gradingResult ? currentItem?.id === gradingResult.itemId : false;
+  const isCurrentItem = currentItem?.id === gradingResult.itemId;
 
   return (
     <ResultView

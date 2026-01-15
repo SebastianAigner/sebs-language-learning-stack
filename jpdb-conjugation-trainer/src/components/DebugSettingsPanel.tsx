@@ -86,7 +86,7 @@ export function DebugSettingsPanel({ rawOutput }: DebugSettingsPanelProps) {
                   {cacheEntries.map((entry) => (
                     <tr key={entry.key} className={entry.isCorrect ? 'cache-correct' : 'cache-incorrect'}>
                       <td className="cache-word">{entry.word}</td>
-                      <td className="cache-form">{CONJUGATION_LABELS[entry.conjugationType as ConjugationType] || entry.conjugationType}</td>
+                      <td className="cache-form">{CONJUGATION_LABELS[entry.conjugationType as ConjugationType]}</td>
                       <td className="cache-answer">{entry.userAnswer}</td>
                       <td className="cache-correct-answer">{entry.correctAnswer}</td>
                       <td className="cache-result">
@@ -103,7 +103,7 @@ export function DebugSettingsPanel({ rawOutput }: DebugSettingsPanelProps) {
 
         <details id="raw-output-section" style={{ marginTop: '20px' }}>
           <summary>Raw LLM Output</summary>
-          <pre className="raw-output-content">{rawOutput || 'No output yet'}</pre>
+          <pre className="raw-output-content">{rawOutput ?? 'No output yet'}</pre>
         </details>
       </div>
     </details>

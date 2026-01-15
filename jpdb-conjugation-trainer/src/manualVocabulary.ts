@@ -14,7 +14,7 @@ export function isKana(char: string): boolean {
  * Checks if a string ends with a kana character
  */
 export function endsWithKana(text: string): boolean {
-  if (!text || text.length === 0) return false;
+  if (text === '') return false;
   const lastChar = text[text.length - 1];
   return isKana(lastChar);
 }
@@ -31,11 +31,10 @@ function isValidEnding(word: string, type: WordType): boolean {
   if (type === 'verb') {
     // For verbs, we allow standard verb endings OR nouns (assuming suru-nouns)
     // as per user request: "it's the user's responsibility for now that they're suru-nouns specfically"
-    return true; 
-  } else if (type === 'adjective') {
-    return lastChar === 'い';
+    return true;
   }
-  return false;
+  // type === 'adjective'
+  return lastChar === 'い';
 }
 
 /**

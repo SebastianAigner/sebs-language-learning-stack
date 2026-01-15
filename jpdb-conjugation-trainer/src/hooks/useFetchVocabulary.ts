@@ -40,9 +40,9 @@ export function useFetchVocabulary() {
       let enabledTypes = options?.enabledTypes;
       if (!enabledTypes) {
         const saved = localStorage.getItem(STORAGE_KEYS.CONJUGATION_TYPES);
-        if (saved) {
+        if (saved !== null) {
           try {
-            enabledTypes = JSON.parse(saved);
+            enabledTypes = JSON.parse(saved) as ConjugationType[];
           } catch (error) {
             console.error('Failed to load conjugation types:', error);
           }
@@ -54,7 +54,7 @@ export function useFetchVocabulary() {
       // Append always-add cards to the end of the queue
       if (mode === 'both' || mode === 'verbs') {
         const alwaysAddVerbsText = config.alwaysAddVerbs;
-        if (alwaysAddVerbsText.trim()) {
+        if (alwaysAddVerbsText.trim() !== '') {
           const parseResult = parseManualVocabulary(alwaysAddVerbsText, 'verb');
           if (parseResult.success && parseResult.items.length > 0) {
             const alwaysAddItems = initializeQueue(parseResult.items, enabledTypes, blacklist, maxPerType);
@@ -65,7 +65,7 @@ export function useFetchVocabulary() {
 
       if (mode === 'both' || mode === 'adjectives') {
         const alwaysAddAdjectivesText = config.alwaysAddAdjectives;
-        if (alwaysAddAdjectivesText.trim()) {
+        if (alwaysAddAdjectivesText.trim() !== '') {
           const parseResult = parseManualVocabulary(alwaysAddAdjectivesText, 'adjective');
           if (parseResult.success && parseResult.items.length > 0) {
             const alwaysAddItems = initializeQueue(parseResult.items, enabledTypes, blacklist, maxPerType);
@@ -154,9 +154,9 @@ export function usePracticeEvergreens() {
       let enabledTypes = options?.enabledTypes;
       if (!enabledTypes) {
         const saved = localStorage.getItem(STORAGE_KEYS.CONJUGATION_TYPES);
-        if (saved) {
+        if (saved !== null) {
           try {
-            enabledTypes = JSON.parse(saved);
+            enabledTypes = JSON.parse(saved) as ConjugationType[];
           } catch (error) {
             console.error('Failed to load conjugation types:', error);
           }
@@ -168,7 +168,7 @@ export function usePracticeEvergreens() {
       // Append always-add cards to the end of the queue
       if (mode === 'both' || mode === 'verbs') {
         const alwaysAddVerbsText = config.alwaysAddVerbs;
-        if (alwaysAddVerbsText.trim()) {
+        if (alwaysAddVerbsText.trim() !== '') {
           const alwaysAddResult = parseManualVocabulary(alwaysAddVerbsText, 'verb');
           if (alwaysAddResult.success && alwaysAddResult.items.length > 0) {
             const alwaysAddItems = initializeQueue(alwaysAddResult.items, enabledTypes, blacklist, maxPerType);
@@ -179,7 +179,7 @@ export function usePracticeEvergreens() {
 
       if (mode === 'both' || mode === 'adjectives') {
         const alwaysAddAdjectivesText = config.alwaysAddAdjectives;
-        if (alwaysAddAdjectivesText.trim()) {
+        if (alwaysAddAdjectivesText.trim() !== '') {
           const alwaysAddResult = parseManualVocabulary(alwaysAddAdjectivesText, 'adjective');
           if (alwaysAddResult.success && alwaysAddResult.items.length > 0) {
             const alwaysAddItems = initializeQueue(alwaysAddResult.items, enabledTypes, blacklist, maxPerType);
@@ -211,7 +211,7 @@ export function usePracticeGrammar() {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
-  const practiceGrammar = useCallback(async (cards: GrammarCard[], variantMode: 'random' | 'all' = 'random', shuffle: boolean = false) => {
+  const practiceGrammar = useCallback((cards: GrammarCard[], variantMode: 'random' | 'all' = 'random', shuffle: boolean = false) => {
     try {
       if (cards.length === 0) {
         showNotification('warning', 'No grammar cards selected.');

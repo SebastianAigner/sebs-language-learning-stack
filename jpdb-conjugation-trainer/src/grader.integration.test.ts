@@ -11,15 +11,15 @@ describe('OpenRouter Integration', () => {
 
   beforeAll(() => {
     // Try environment variable first (should be loaded via dotenv in this test)
-    apiKey = process.env.OPENROUTER_API_KEY || '';
+    apiKey = process.env.OPENROUTER_API_KEY ?? '';
 
-    if (!apiKey) {
+    if (apiKey === '') {
       console.warn('Warning: OPENROUTER_API_KEY not found in environment. Integration tests will be skipped.');
     }
   });
 
   it('should grade a correct answer with star emoji', async () => {
-    if (!apiKey) {
+    if (apiKey === '') {
       console.log('Skipping test: no API key');
       return;
     }
@@ -39,7 +39,7 @@ describe('OpenRouter Integration', () => {
   }, 30000);
 
   it('should grade an incorrect answer with sparkle emoji', async () => {
-    if (!apiKey) {
+    if (apiKey === '') {
       console.log('Skipping test: no API key');
       return;
     }
