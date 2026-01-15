@@ -471,7 +471,7 @@ app.post('/api/cache/clear', (_req: Request, res: Response) => {
 /**
  * DELETE /api/cache/:hash - Delete specific cached file
  */
-app.delete('/api/cache/:hash', (req: Request, res: Response) => {
+app.delete('/api/cache/:hash', (req: Request<{ hash: string }>, res: Response) => {
   const { hash } = req.params;
 
   try {
@@ -504,7 +504,7 @@ app.delete('/api/cache/:hash', (req: Request, res: Response) => {
 /**
  * GET /api/cache/audio/:hash - Get cached audio file
  */
-app.get('/api/cache/audio/:hash', (req: Request, res: Response) => {
+app.get('/api/cache/audio/:hash', (req: Request<{ hash: string }>, res: Response) => {
   const { hash } = req.params;
   const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
 

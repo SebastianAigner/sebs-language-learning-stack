@@ -155,7 +155,7 @@ export function createViteReactConfig({ tsconfigRootDir, plugins, globals, ignor
       extends: [
         js.configs.recommended,
         tseslint.configs.recommendedTypeChecked,
-        plugins.reactHooks.configs['recommended-latest'],
+        plugins.reactHooks.configs.flat['recommended-latest'],
         plugins.reactRefresh.configs.vite,
       ],
       languageOptions: {

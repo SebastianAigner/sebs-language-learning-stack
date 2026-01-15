@@ -159,7 +159,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const verbText = `${count} similar verb${count > 1 ? 's' : ''}`;
         let message: string;
 
-        if (conjugationType !== undefined && conjugationType !== '') {
+        if (conjugationType !== undefined) {
           const conjugationLabel = CONJUGATION_LABELS[conjugationType];
           message = `Moved ${verbText} (${conjugationLabel}) up in the queue`;
         } else if (endingKana === 'no-kana-ending') {
