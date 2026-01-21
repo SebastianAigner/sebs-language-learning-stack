@@ -1,10 +1,14 @@
 # Japanese TTS Service
 
-Microservice for generating Japanese text-to-speech using ElevenLabs API with intelligent file system caching.
+Microservice for generating Japanese text-to-speech using Azure AI Speech or ElevenLabs API with intelligent file system caching.
+
+> [!TIP]
+> **Azure AI Speech is the preferred provider** for Japanese. While still not perfect (especially with pitch accent and some kanji readings), it is significantly more reliable than ElevenLabs, which tends to make a lot more mistakes with Japanese pronunciation and context.
 
 ## Features
 
-- **ElevenLabs Flash v2.5 Model** - Fast, high-quality Japanese TTS
+- **Multi-provider Support** - Supports both Azure AI Speech (preferred) and ElevenLabs Flash v2.5
+- **High-Quality Japanese TTS** - Optimized for Japanese language learning context
 - **File System Caching** - SHA-256 hashed filenames prevent duplicate API calls
 - **Management UI** - Web dashboard for monitoring and testing
 - **REST API** - Simple HTTP endpoints for TTS generation and cache management
@@ -13,6 +17,7 @@ Microservice for generating Japanese text-to-speech using ElevenLabs API with in
 ## Prerequisites
 
 - Node.js 18+ (for native fetch and --watch support)
+- Azure AI Speech API key and Region (preferred)
 - ElevenLabs API key ([get one here](https://elevenlabs.io))
 - Port 5065 available
 
@@ -273,6 +278,10 @@ curl "http://localhost:5065/tts?text=test" -I
 
 ## Cost Optimization
 
+**Azure AI Speech Pricing** (preferred):
+- Free tier: 0.5 million characters/month
+- Paid tier: ~$1.00 per 1 million characters
+
 **ElevenLabs Pricing** (as of 2024):
 - Free tier: 10,000 characters/month
 - Paid tier: $5-$99/month
@@ -285,8 +294,8 @@ curl "http://localhost:5065/tts?text=test" -I
 - No cache expiration (conjugations don't change)
 
 **Estimated Costs:**
-- Development: Free tier sufficient
-- Production: ~$5-10/month for active users
+- Development: Free tier sufficient for both
+- Production: Very low with Azure (cents per month) or ~$5-10/month for active users with ElevenLabs
 
 ## Technical Details
 
@@ -303,6 +312,10 @@ curl "http://localhost:5065/tts?text=test" -I
 - Model: `eleven_flash_v2_5` (fast, cost-effective)
 - Voice: `3JDquces8E8bkmvbh6Bc` (Japanese)
 - Settings: Stability 0.5, Similarity 0.75
+
+**Azure AI Speech:**
+- Model: `ja-JP-NanamiNeural` (default, preferred)
+- Features: Support for contextual silence prepending to improve pronunciation naturalness.
 
 ## License
 
