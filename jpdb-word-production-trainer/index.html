@@ -150,6 +150,15 @@
             value="http://localhost:3000"
             title="Vocabulary service URL">
         </div>
+        <div class="setting-item">
+          <label for="blacklist">Blacklist (one word per line):</label>
+          <p class="setting-description">Words entered here will be replaced with question marks in definitions to prevent spoilers.</p>
+          <textarea
+            id="blacklist"
+            placeholder="e.g.&#10;suru&#10;kuru"
+            title="Words to hide in definitions"
+            rows="5"></textarea>
+        </div>
       </div>
     </details>
   </aside>

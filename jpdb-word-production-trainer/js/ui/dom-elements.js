@@ -37,6 +37,7 @@ export function initializeDOMElements() {
 
     // Config
     serviceUrl: document.getElementById('service-url'),
+    blacklist: document.getElementById('blacklist'),
     fetchBtn: document.getElementById('fetch-btn'),
     shuffleBtn: document.getElementById('shuffle-btn'),
     reverseBtn: document.getElementById('reverse-btn'),

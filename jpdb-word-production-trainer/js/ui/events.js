@@ -191,5 +191,13 @@ export function setupEventListeners(elements, render, callbacks) {
     saveState();
   });
 
+  // Blacklist input - update config on change
+  elements.blacklist.addEventListener('change', () => {
+    state.config.blacklist = elements.blacklist.value;
+    console.log('Blacklist updated');
+    saveState();
+    render();
+  });
+
   console.log('Event listeners set up');
 }

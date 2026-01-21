@@ -7,6 +7,34 @@ import { loadMistakes } from '../mistakes.js';
 import { playCorrectSound, playWrongSound, playTTS } from './audio.js';
 import { startAutoAdvanceTimer, clearAutoAdvanceTimer } from './timer.js';
 
+/**
+ * Filter English definition based on blacklist
+ * @param {string} text - Original English definition
+ * @param {string} blacklistStr - Blacklist string (newline separated)
+ * @returns {string} Filtered text
+ */
+function filterDefinition(text, blacklistStr) {
+  if (!blacklistStr) return text;
+
+  const blacklist = blacklistStr
+    .split('\n')
+    .map(word => word.trim())
+    .filter(word => word.length > 0);
+
+  if (blacklist.length === 0) return text;
+
+  let filteredText = text;
+  for (const word of blacklist) {
+    // Escape special regex characters in the word
+    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Case-insensitive replacement with question marks
+    const regex = new RegExp(escapedWord, 'gi');
+    filteredText = filteredText.replace(regex, match => '?'.repeat(match.length));
+  }
+
+  return filteredText;
+}
+
 // Show prompt view (English definition + input)
 export function showPromptView(elements, item, currentInput, state) {
   if (!item) {
@@ -15,7 +43,10 @@ export function showPromptView(elements, item, currentInput, state) {
   }
 
   // Get English definition from various possible fields
-  const englishDef = item.englishDefinition || item.english || item.meaning || item.definition || 'No definition available';
+  let englishDef = item.englishDefinition || item.english || item.meaning || item.definition || 'No definition available';
+  
+  // Apply blacklist filter
+  englishDef = filterDefinition(englishDef, state.config.blacklist);
 
   elements.englishText.textContent = englishDef;
   elements.japaneseInput.value = currentInput;
@@ -42,7 +73,10 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
 
   // Get Japanese text from various possible fields
   const correctJapanese = item.japaneseText || item.japanese || item.spelling || 'No Japanese text available';
-  const englishDef = item.englishDefinition || item.english || item.meaning || item.definition || 'No definition available';
+  let englishDef = item.englishDefinition || item.english || item.meaning || item.definition || 'No definition available';
+
+  // Apply blacklist filter
+  englishDef = filterDefinition(englishDef, state.config.blacklist);
 
   elements.comparisonEnglishText.textContent = englishDef;
   elements.userAnswer.textContent = currentInput;

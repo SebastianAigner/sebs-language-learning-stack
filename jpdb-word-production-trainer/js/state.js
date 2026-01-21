@@ -34,7 +34,8 @@ export const state = {
   config: {
     serviceUrl: CONFIG.DEFAULT_SERVICE_URL,
     autoAdvanceCorrect: CONFIG.AUTO_ADVANCE_CORRECT,
-    ttsEnabled: CONFIG.TTS_ENABLED
+    ttsEnabled: CONFIG.TTS_ENABLED,
+    blacklist: ''
   },
 
   session: {
@@ -126,6 +127,7 @@ export function resetState() {
     state.config.serviceUrl = CONFIG.DEFAULT_SERVICE_URL;
     state.config.autoAdvanceCorrect = CONFIG.AUTO_ADVANCE_CORRECT;
     state.config.ttsEnabled = CONFIG.TTS_ENABLED;
+    state.config.blacklist = '';
     state.session = {
       queue: [],
       currentIndex: 0,

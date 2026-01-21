@@ -72,5 +72,8 @@ export function setupEventListeners(callbacks) {
 // Initialize service URL input and config with current value
 export function updateConfigInputs() {
   updateServiceUrlField(elements, state.config.serviceUrl);
+  if (elements.blacklist) {
+    elements.blacklist.value = state.config.blacklist || '';
+  }
   initTTSIndicator('tts-status-container', CONFIG.TTS_BASE_URL);
 }
