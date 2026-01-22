@@ -662,6 +662,9 @@
             ${data.previousText ? `<div class="cache-item-context">Context: ${escapeHtml(data.previousText)}</div>` : ''}
           </div>
           <div class="cache-item-actions">
+            <button class="icon-button secondary" onclick="downloadItem('${data.hash}')" title="Download">
+              📥
+            </button>
             <button class="icon-button primary" onclick="playItem('${data.hash}')" title="Play">
               🔊
             </button>
