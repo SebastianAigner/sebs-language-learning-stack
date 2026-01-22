@@ -68,6 +68,15 @@ interface CacheStats {
   files: CacheFileInfo[];
 }
 
+interface LiveFeedEvent {
+  id: string;
+  text: string;
+  previousText?: string;
+  hash: string;
+  timestamp: string;
+  status: 'HIT' | 'MISS' | 'REGENERATED';
+}
+
 interface ElevenLabsRequest {
   text: string;
   model_id: string;
@@ -89,6 +98,23 @@ app.use(express.static('public'));
 // Load API keys
 const ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY ?? '';
 const AZURE_API_KEY: string = process.env.AZURE_API_KEY ?? '';
+
+// SSE clients
+let sseClients: Response[] = [];
+
+/**
+ * Broadcast event to all SSE clients
+ */
+function broadcastLiveFeedEvent(event: Omit<LiveFeedEvent, 'id' | 'timestamp'>): void {
+  const fullEvent: LiveFeedEvent = {
+    ...event,
+    id: Math.random().toString(36).substring(2, 11),
+    timestamp: new Date().toISOString()
+  };
+
+  const data = `data: ${JSON.stringify(fullEvent)}\n\n`;
+  sseClients.forEach(client => client.write(data));
+}
 
 if (CONFIG.provider === 'elevenlabs') {
   if (ELEVENLABS_API_KEY === '') {
@@ -360,6 +386,22 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/feed - SSE live feed of TTS requests
+ */
+app.get('/api/feed', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  sseClients.push(res);
+
+  req.on('close', () => {
+    sseClients = sseClients.filter(client => client !== res);
+  });
+});
+
+/**
  * GET /tts?text=...&previous_text=... - Generate or serve cached TTS audio
  */
 app.get('/tts', (req: Request, res: Response): void => {
@@ -400,6 +442,12 @@ app.get('/tts', (req: Request, res: Response): void => {
   // Check if cached
   if (existsSync(audioPath)) {
     console.log(`Cache HIT for "${textValue}" (${hash}.mp3)`);
+    broadcastLiveFeedEvent({
+      text: textValue,
+      previousText,
+      hash,
+      status: 'HIT'
+    });
     res.set({
       'Content-Type': 'audio/mpeg',
       'Cache-Control': 'public, max-age=31536000',
@@ -415,6 +463,13 @@ app.get('/tts', (req: Request, res: Response): void => {
   void (async (): Promise<void> => {
     try {
       await generateAndCacheTTS(textValue, hash, previousText);
+
+      broadcastLiveFeedEvent({
+        text: textValue,
+        previousText,
+        hash,
+        status: 'MISS'
+      });
 
       res.set({
         'Content-Type': 'audio/mpeg',
@@ -561,6 +616,13 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
 
       // Generate new audio with random seed
       await generateAndCacheTTS(textValue, hash, previousText, randomSeed);
+
+      broadcastLiveFeedEvent({
+        text: textValue,
+        previousText,
+        hash,
+        status: 'REGENERATED'
+      });
 
       let url = `/tts?text=${encodeURIComponent(textValue)}`;
       if (previousText !== undefined && previousText !== '') {

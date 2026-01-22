@@ -211,6 +211,48 @@
       overflow-y: auto;
     }
 
+    /* Live Feed Styles */
+    .feed-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .feed-item {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+
+    .status-hit { background: #c6f6d5; color: #22543d; }
+    .status-miss { background: #feebc8; color: #744210; }
+    .status-regenerated { background: #bee3f8; color: #2c5282; }
+
+    .feed-item-time {
+      font-size: 12px;
+      color: #a0aec0;
+      margin-bottom: 4px;
+    }
+
     .empty-state {
       text-align: center;
       padding: 40px 20px;
@@ -305,6 +347,14 @@
         <span style="color: #667eea;">Sending as:</span> <span id="sending-as-text"></span>
       </div>
       <button class="primary" onclick="testTTS()">🔊 Generate & Play</button>
+    </div>
+
+    <!-- Live Feed -->
+    <div class="card">
+      <h2>Live Request Feed</h2>
+      <div class="feed-list" id="feed-list">
+        <div class="empty-state">Waiting for requests...</div>
+      </div>
     </div>
 
     <!-- Cached Items -->
@@ -584,6 +634,64 @@
 
     // Load stats on page load
     refreshStats();
+
+    // SSE Setup
+    function setupSSE() {
+      const feedList = document.getElementById('feed-list');
+      const eventSource = new EventSource('/api/feed');
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        const time = new Date(data.timestamp).toLocaleTimeString();
+
+        // Remove empty state if present
+        const emptyState = feedList.querySelector('.empty-state');
+        if (emptyState) {
+          feedList.innerHTML = '';
+        }
+
+        const item = document.createElement('div');
+        item.className = 'feed-item';
+        item.innerHTML = `
+          <div class="cache-item-info">
+            <div class="feed-item-time">${time}</div>
+            <div class="cache-item-text">
+              ${escapeHtml(data.text)}
+              <span class="status-badge status-${data.status.toLowerCase()}">${data.status}</span>
+            </div>
+            ${data.previousText ? `<div class="cache-item-context">Context: ${escapeHtml(data.previousText)}</div>` : ''}
+          </div>
+          <div class="cache-item-actions">
+            <button class="icon-button primary" onclick="playItem('${data.hash}')" title="Play">
+              🔊
+            </button>
+            <button class="icon-button danger" onclick="deleteItem('${data.hash}')" title="Invalidate Cache">
+              🗑️
+            </button>
+          </div>
+        `;
+
+        // Add to top of list
+        feedList.insertBefore(item, feedList.firstChild);
+
+        // Limit feed items
+        if (feedList.children.length > 50) {
+          feedList.removeChild(feedList.lastChild);
+        }
+
+        // Auto-refresh stats to keep them in sync
+        refreshStats();
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('SSE Error:', error);
+        eventSource.close();
+        // Reconnect after 5 seconds
+        setTimeout(setupSSE, 5000);
+      };
+    }
+
+    setupSSE();
 
     // Initial preview update
     updateSendingAsPreview();
