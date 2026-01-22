@@ -197,7 +197,13 @@ export function updateDebugPanels(elements, queue, currentIndex, reviewedCorrect
     elements.queueList.innerHTML = queueItems
       .map(item => {
         const english = item.englishDefinition || item.english || item.meaning || '?';
-        const badge = item.isRescheduled ? ` <span class="rescheduled-badge">R${item.rescheduleIteration}</span>` : '';
+        let badgeText = '';
+        if (item.isEndReschedule) {
+          badgeText = 'End';
+        } else if (item.isRescheduled) {
+          badgeText = `R${item.rescheduleIteration}`;
+        }
+        const badge = badgeText ? ` <span class="rescheduled-badge">${badgeText}</span>` : '';
         return `<li>${english}${badge}</li>`;
       })
       .join('');

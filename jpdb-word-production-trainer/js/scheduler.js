@@ -183,6 +183,19 @@ export function handleNotGoodGrade() {
     console.log(`Scheduled re-prompt ${i + 1} at position ${insertPosition}`);
   }
 
+  // If this was the first mistake on this card, also add it to the very end of the session
+  if (newAttempts === 1) {
+    console.log(`First mistake on ${vocabId}, adding to the very end of the review`);
+    const endRescheduledItem = {
+      ...currentItem,
+      isRescheduled: true,
+      isEndReschedule: true,
+      originalAttempts: newAttempts,
+      scheduledAt: Date.now()
+    };
+    state.session.queue.push(endRescheduledItem);
+  }
+
   // Don't increment currentIndex since we removed an item
   // The next item is now at the current index
 
