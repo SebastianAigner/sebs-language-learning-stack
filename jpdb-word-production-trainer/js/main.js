@@ -26,8 +26,13 @@ async function init() {
   
   // Update inputs from loaded state
   updateConfigInputs();
+  
+  // Check if session needs to be reset (new day)
+  const today = new Date().toDateString();
+  const lastUpdateDate = state.session.lastUpdated ? new Date(state.session.lastUpdated).toDateString() : null;
+  const shouldResetForNewDay = hasPersistedState && lastUpdateDate && lastUpdateDate !== today;
 
-  if (hasPersistedState) {
+  if (hasPersistedState && !shouldResetForNewDay) {
     // We have persisted state, restore it (even if queue is exhausted)
     console.log('Resuming from persisted state');
 
@@ -39,8 +44,16 @@ async function init() {
 
     render();
   } else {
-    // No persisted state, fetch fresh data
-    console.log('No persisted state, fetching fresh data');
+    // No persisted state or new day, fetch fresh data
+    if (shouldResetForNewDay) {
+      console.log('New day detected, resetting session');
+      // Keep config but reset session
+      const currentConfig = { ...state.config };
+      resetState();
+      state.config = currentConfig;
+    } else {
+      console.log('No persisted state, fetching fresh data');
+    }
     await fetchAndInitialize();
   }
 
@@ -74,6 +87,7 @@ async function fetchAndInitialize() {
     // Initialize queue
     initializeQueue(normalizedItems);
 
+    saveState();
     hideLoading();
     render();
 

@@ -25,6 +25,7 @@ import { CONFIG } from './config.js';
  * @property {Object} session.stats - Session statistics
  * @property {number} session.stats.totalReviewed - Count of items reviewed correctly on first try
  * @property {number} session.stats.currentStreak - Current streak of correct answers
+ * @property {string|null} session.lastUpdated - ISO date string of last update
  * @property {Object} ui - UI state (not persisted)
  * @property {string} ui.currentInput - Current user input
  * @property {boolean} ui.showingComparison - Whether comparison view is active
@@ -48,7 +49,8 @@ export const state = {
     stats: {
       totalReviewed: 0,
       currentStreak: 0
-    }
+    },
+    lastUpdated: null
   },
 
   ui: {
@@ -104,6 +106,7 @@ export function loadState() {
  */
 export function saveState() {
   try {
+    state.session.lastUpdated = new Date().toISOString();
     localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(state));
     console.log('State saved to localStorage');
   } catch (error) {
@@ -138,7 +141,8 @@ export function resetState() {
       stats: {
         totalReviewed: 0,
         currentStreak: 0
-      }
+      },
+      lastUpdated: null
     };
     state.ui = {
       currentInput: '',
