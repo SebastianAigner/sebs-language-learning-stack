@@ -16,7 +16,10 @@ export function PolitenessImage({ conjugationType, isCasual, isPolite }: Politen
   const isAffirmative = !isNegative && !conjugationType.includes('te-form');
   const isProgressive = conjugationType.includes('progressive');
 
-  const src = isCasual ? '/img/nomikai_happy.png' : '/img/office_lady.png';
+  let src = isCasual ? '/img/nomikai_happy.png' : '/img/office_lady.png';
+  if (isPast) {
+    src = isCasual ? '/img/album_roujin.png' : '/img/samurai_kettou.png';
+  }
   const alt = isCasual ? 'Casual' : 'Polite';
 
   return (
@@ -24,7 +27,7 @@ export function PolitenessImage({ conjugationType, isCasual, isPolite }: Politen
       <img
         src={src}
         alt={alt}
-        className={`politeness-image ${isPast ? 'grayscale' : ''}`}
+        className={`politeness-image ${isProgressive ? 'progressive-animation' : ''}`}
       />
       {isNegative ? <div className="overlay-tr" title="Negative">
           ❌

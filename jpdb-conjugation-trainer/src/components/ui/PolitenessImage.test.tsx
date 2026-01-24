@@ -23,7 +23,7 @@ describe('PolitenessImage', () => {
     expect(html).toContain('office_lady.png');
   });
 
-  it('shows past indicators for past-affirmative-polite', () => {
+  it('shows samurai image for past-affirmative-polite', () => {
     const html = renderToString(
       <PolitenessImage 
         conjugationType="past-affirmative-polite" 
@@ -32,15 +32,15 @@ describe('PolitenessImage', () => {
       />
     );
     
-    // Should contain grayscale class
-    expect(html).toContain('grayscale');
+    // Should contain samurai image
+    expect(html).toContain('samurai_kettou.png');
     // Should contain the clock emoji
     expect(html).toContain('🕰️');
     // Should contain affirmative indicator
     expect(html).toContain('✅');
   });
 
-  it('shows past indicators for negative-past-casual', () => {
+  it('shows album image for negative-past-casual', () => {
     const html = renderToString(
       <PolitenessImage 
         conjugationType="negative-past-casual" 
@@ -49,13 +49,26 @@ describe('PolitenessImage', () => {
       />
     );
     
-    // Should contain grayscale class
-    expect(html).toContain('grayscale');
+    // Should contain album image
+    expect(html).toContain('album_roujin.png');
     // Should contain the clock emoji
     expect(html).toContain('🕰️');
     // Should contain negative indicator
     expect(html).toContain('❌');
-    // Should contain nomikai image
-    expect(html).toContain('nomikai_happy.png');
+  });
+
+  it('shows progressive animation for progressive-polite', () => {
+    const html = renderToString(
+      <PolitenessImage 
+        conjugationType="progressive-polite" 
+        isCasual={false} 
+        isPolite={true} 
+      />
+    );
+    
+    // Should contain progressive-animation class
+    expect(html).toContain('progressive-animation');
+    // Should contain office lady image
+    expect(html).toContain('office_lady.png');
   });
 });

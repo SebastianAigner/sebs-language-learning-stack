@@ -416,6 +416,15 @@ main {
   filter: grayscale(100%);
 }
 
+.politeness-image.progressive-animation {
+  animation: moveLeftRight 2s ease-in-out infinite;
+}
+
+@keyframes moveLeftRight {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(15px); }
+}
+
 .overlay-tr {
   position: absolute;
   top: -10px;
