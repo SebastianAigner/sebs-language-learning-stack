@@ -238,14 +238,27 @@ function removeExcessQueueItems(state: SessionState, itemKey: string): number {
   }
 
   let removedCount = 0;
-  // Keep only the last occurrence, remove all others
-  if (futureOccurrences.length > 1) {
-    // Remove all but the last
+  // If we have future occurrences, we want to keep only the VERY LAST one,
+  // AND we want to make sure it's an "end card" (rescheduled).
+  if (futureOccurrences.length > 0) {
+    const lastIndex = futureOccurrences[futureOccurrences.length - 1];
+    
+    // 1. Remove all future occurrences except the last one
     for (let i = futureOccurrences.length - 2; i >= 0; i--) {
       state.queue.splice(futureOccurrences[i], 1);
       removedCount++;
     }
+
+    // 2. Ensure the remaining one is marked as a rescheduled "end card"
+    // (If it was already an end card, we keep it as is. If it was a normal card,
+    // we effectively promote it to be the end card.)
+    const remainingItem = state.queue[lastIndex - removedCount];
+    if (!remainingItem.isRescheduled) {
+      remainingItem.isRescheduled = true;
+      remainingItem.rescheduleIteration = 4; // Use the max iteration for "end"
+    }
   }
+  
   return removedCount;
 }
 
