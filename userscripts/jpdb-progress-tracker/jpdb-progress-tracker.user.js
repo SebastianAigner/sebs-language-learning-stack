@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         jpdb Daily Progress Tracker (V1.6 - Layout Fix)
+// @name         jpdb Daily Progress Tracker (V1.7 - Deck Count Header)
 // @namespace    http://tampermonkey.net/
-// @version      1.6
-// @description  Track Known+Learning for Kanji/Vocab with smart list filtering and clean layout
+// @version      1.7
+// @description  Track Known+Learning for Kanji/Vocab with smart list filtering and deck counts
 // @author       Gemini
 // @match        https://jpdb.io/*
 // @grant        none
@@ -12,7 +12,10 @@
     'use strict';
 
     const today = new Date().toISOString().split('T')[0];
-    const STORAGE_KEY = 'jpdb_daily_tracker_v1_5'; // Keeping key same to preserve history if users update today
+
+    // DO NOT INCREMENT THE STORAGE KEY VERSION UNLESS THE SCHEMA ACTUALLY CHANGES!
+    // Changing this key will wipe the user's progress history for the current day.
+    const STORAGE_KEY = 'jpdb_daily_tracker_v1_5';
 
     // --- STORAGE HELPERS ---
     function getStoredData() {
@@ -105,6 +108,7 @@
 
         let changedRows = [];
         let unchangedRows = [];
+        let affectedDeckCount = 0;
 
         // Helper to truncate text
         const truncate = (str, n) => {
@@ -117,6 +121,7 @@
             const vDiff = Math.max(0, currentCounts.vocab - baseCounts.vocab);
             const kDiff = Math.max(0, currentCounts.kanji - baseCounts.kanji);
 
+            // Skip empty tracking rows
             if (currentCounts.vocab === 0 && currentCounts.kanji === 0) continue;
 
             const hasChange = vDiff > 0 || kDiff > 0;
@@ -148,6 +153,10 @@
 
             if (hasChange) {
                 changedRows.push(rowHtml);
+                // Count legitimate review decks, ignore the "All vocabulary" aggregate deck
+                if (name !== 'All vocabulary') {
+                    affectedDeckCount++;
+                }
             } else {
                 unchangedRows.push(rowHtml);
             }
@@ -189,9 +198,11 @@
             }
         }
 
+        const statsText = (affectedDeckCount === 1) ? "across 1 deck" : `across ${affectedDeckCount} decks`;
+
         box.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h4 style="margin:0">Today's Progress <small style="font-weight:normal; opacity:0.7; font-size:0.8em">(Known + Learning)</small></h4>
+                <h4 style="margin:0">Today's Progress <small style="font-weight:normal; opacity:0.7; font-size:0.8em">${statsText}</small></h4>
             </div>
             ${tableHeader}
             ${mainContent}
