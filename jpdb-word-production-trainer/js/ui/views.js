@@ -95,7 +95,7 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
   const isExact = isExactMatch(currentInput, correctJapanese);
   
   // Play TTS for the written form shown as the correct answer.
-  playTTS(correctJapanese, state.config.ttsPrefixText);
+  playTTS(correctJapanese, state.config.ttsPrefixText, state.config.ttsSuffixText);
 
   if (isExact) {
     elements.comparisonGrid.classList.add('exact-match');

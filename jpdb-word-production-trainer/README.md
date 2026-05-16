@@ -51,9 +51,9 @@ You can configure the vocabulary service URL in two ways:
 1. **Runtime**: Enter the URL in the input field at the top of the page
 2. **Code**: Edit `js/config.js` and change `DEFAULT_SERVICE_URL`
 
-### TTS Prefix Text
+### TTS Prefix And Suffix Text
 
-The settings panel includes an optional **TTS prefix text** field. When it is non-blank, the trainer sends it as `previous_text` to the TTS service for each spoken answer. Leave it blank to use the TTS server's default prefix.
+The settings panel includes optional **TTS prefix text** and **TTS suffix text** fields. When they are non-blank, the trainer sends them as `previous_text` and `suffix_text` to the TTS service for each spoken answer. Leave them blank to use the TTS server defaults.
 
 ### Scheduling Parameters
 
@@ -143,6 +143,7 @@ All session data is stored in `localStorage` under the key `jpdb-trainer-state`:
 - Session statistics
 - Service URL configuration
 - TTS prefix text
+- TTS suffix text
 
 ### Resetting Data
 

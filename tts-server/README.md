@@ -44,12 +44,13 @@ The service will start on http://localhost:5065
 ### GET /
 Serves the management UI dashboard.
 
-### GET /tts?text={japanese_text}&previous_text={context}
+### GET /tts?text={japanese_text}&previous_text={context}&suffix_text={suffix}
 Generate or serve cached TTS audio.
 
 **Parameters:**
 - `text` (required) - Japanese text to convert to speech (max 500 characters)
 - `previous_text` (optional) - Previous text context to improve TTS naturalness (e.g. preceding sentence). If omitted, the service uses `TTS_DEFAULT_PREVIOUS_TEXT`, which defaults to `[japanese text, clearly enunciated]`. Azure prepends it at near-silent volume, ElevenLabs receives it as provider context, and OpenRouter uses it as a prompt prefix before the requested text.
+- `suffix_text` (optional) - Suffix context appended after the requested text. If omitted, the service uses `TTS_DEFAULT_SUFFIX_TEXT`, which defaults to `。 [brief pause]`. OpenRouter uses it as a prompt suffix; ElevenLabs receives it as provider next-text context; Azure appends it at near-silent volume.
 
 **Response:**
 - Success (200): Audio stream. Azure and ElevenLabs are MP3; OpenRouter PCM responses are converted to WAV for browser playback.
@@ -133,7 +134,8 @@ The service can be configured via environment variables:
 
 ```bash
 TTS_PROVIDER=openrouter                # openrouter, azure, or elevenlabs
-TTS_DEFAULT_PREVIOUS_TEXT=[japanese text, clearly enunciated]
+TTS_DEFAULT_PREVIOUS_TEXT="[japanese text, clearly enunciated]"
+TTS_DEFAULT_SUFFIX_TEXT="。 [brief pause]"
 PORT=5065                              # Server port (default: 5065)
 VOICE_ID=3JDquces8E8bkmvbh6Bc          # ElevenLabs voice ID
 MODEL=eleven_flash_v2_5                # ElevenLabs model
@@ -152,6 +154,7 @@ const CONFIG = {
   port: 5065,
   provider: 'openrouter',
   defaultPreviousText: '[japanese text, clearly enunciated]',
+  defaultSuffixText: '。 [brief pause]',
   voiceId: '3JDquces8E8bkmvbh6Bc',    // Japanese voice
   model: 'eleven_flash_v2_5',          // Fast Flash model
   openRouterModel: 'google/gemini-3.1-flash-tts-preview',
@@ -336,7 +339,7 @@ curl "http://localhost:5065/tts?text=test" -I
 - Default model: `google/gemini-3.1-flash-tts-preview`
 - Default voice: `Aoede`
 - Default format: `pcm`, converted server-side to WAV so existing browser clients can play it.
-- Previous text is sent as a prompt prefix because OpenRouter Speech does not expose a separate `previous_text` field.
+- Previous and suffix text are sent as prompt prefix/suffix text because OpenRouter Speech does not expose separate `previous_text` or `suffix_text` fields.
 - Optional provider routing options can be supplied as JSON with `OPENROUTER_TTS_PROVIDER`.
 
 ## License

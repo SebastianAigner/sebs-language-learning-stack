@@ -29,7 +29,7 @@ A Japanese Text-to-Speech microservice supporting ElevenLabs, Azure Speech, and 
 - `tsconfig.json` - TypeScript configuration
 
 ## API Endpoints
-- `GET /tts?text=...&previous_text=...` - Generate or serve cached TTS audio
+- `GET /tts?text=...&previous_text=...&suffix_text=...` - Generate or serve cached TTS audio
 - `GET /api/cache` - Get cache statistics
 - `POST /api/regenerate` - Delete cached audio and regenerate
 - `POST /api/test` - Test TTS generation
@@ -44,6 +44,7 @@ A Japanese Text-to-Speech microservice supporting ElevenLabs, Azure Speech, and 
 ## Environment Variables
 - `TTS_PROVIDER` - 'elevenlabs', 'azure', or 'openrouter'
 - `TTS_DEFAULT_PREVIOUS_TEXT` - Default previous/context text when requests omit `previous_text`
+- `TTS_DEFAULT_SUFFIX_TEXT` - Default suffix/context text when requests omit `suffix_text`
 - `ELEVENLABS_API_KEY` - ElevenLabs API key
 - `AZURE_API_KEY` - Azure Speech API key
 - `AZURE_REGION` - Azure region (default: swedencentral)

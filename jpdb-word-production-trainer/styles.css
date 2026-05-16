@@ -71,6 +71,7 @@ header {
 
 #service-url,
 #tts-prefix-text,
+#tts-suffix-text,
 #blacklist {
   padding: 8px 12px;
   border: 1px solid #ccc;

@@ -13,10 +13,43 @@ fi
 # Kill existing session if it exists
 tmux kill-session -t $SESSION 2>/dev/null
 
+load_dotenv() {
+    local env_file="$1"
+    local line key value
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" != *=* ]] && continue
+
+        key="${line%%=*}"
+        value="${line#*=}"
+
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+        value="${value%$'\r'}"
+
+        if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+            echo "Skipping invalid .env key: $key" >&2
+            continue
+        fi
+
+        if [[ ${#value} -ge 2 ]]; then
+            if [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+                value="${value:1:${#value}-2}"
+            elif [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+                value="${value:1:${#value}-2}"
+            fi
+        fi
+
+        export "$key=$value"
+    done < "$env_file"
+}
+
 # Load environment variables from .env if it exists
 if [ -f "$SCRIPT_DIR/.env" ]; then
     echo "Loading environment variables from .env"
-    export $(grep -v '^#' "$SCRIPT_DIR/.env" | xargs)
+    load_dotenv "$SCRIPT_DIR/.env"
 fi
 
 # Create a new tmux session with banner pane at top

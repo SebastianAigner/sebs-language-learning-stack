@@ -198,6 +198,13 @@ export function setupEventListeners(elements, render, callbacks) {
     saveState();
   });
 
+  // TTS suffix text input - update config on change
+  elements.ttsSuffixText.addEventListener('change', () => {
+    state.config.ttsSuffixText = elements.ttsSuffixText.value.trim();
+    console.log('TTS suffix text updated');
+    saveState();
+  });
+
   // Blacklist input - update config on change
   elements.blacklist.addEventListener('change', () => {
     state.config.blacklist = elements.blacklist.value;

@@ -29,7 +29,7 @@ export function playWrongSound() {
 }
 
 // Play TTS for the given text
-export function playTTS(text, prefixText = '') {
+export function playTTS(text, prefixText = '', suffixText = '') {
   if (!text) return;
   
   try {
@@ -38,6 +38,10 @@ export function playTTS(text, prefixText = '') {
     const trimmedPrefixText = prefixText.trim();
     if (trimmedPrefixText) {
       url += `&previous_text=${encodeURIComponent(trimmedPrefixText)}`;
+    }
+    const trimmedSuffixText = suffixText.trim();
+    if (trimmedSuffixText) {
+      url += `&suffix_text=${encodeURIComponent(trimmedSuffixText)}`;
     }
     const audio = new Audio(url);
     audio.volume = 1.0;

@@ -75,6 +75,9 @@ export function updateConfigInputs() {
   if (elements.ttsPrefixText) {
     elements.ttsPrefixText.value = state.config.ttsPrefixText || '';
   }
+  if (elements.ttsSuffixText) {
+    elements.ttsSuffixText.value = state.config.ttsSuffixText || '';
+  }
   if (elements.blacklist) {
     elements.blacklist.value = state.config.blacklist || '';
   }

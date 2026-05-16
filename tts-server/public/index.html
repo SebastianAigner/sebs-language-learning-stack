@@ -339,6 +339,11 @@
       />
       <input
         type="text"
+        id="test-suffix-input"
+        placeholder="Suffix text (defaults to 。 [brief pause])"
+      />
+      <input
+        type="text"
         id="test-input"
         placeholder="Enter Japanese text (e.g., 食べます)"
         value="食べる"
@@ -435,6 +440,7 @@
             <div class="cache-item-info">
               <div class="cache-item-text">${escapeHtml(file.text)}</div>
               ${file.previousText ? `<div class="cache-item-context">Context: ${escapeHtml(file.previousText)}</div>` : ''}
+              ${file.suffixText ? `<div class="cache-item-context">Suffix: ${escapeHtml(file.suffixText)}</div>` : ''}
               <div class="cache-item-meta">
                 ${formatBytes(file.size)} • Created ${formatDate(file.created)}
               </div>
@@ -487,9 +493,11 @@
     async function testTTS() {
       const input = document.getElementById('test-input');
       const contextInput = document.getElementById('test-context-input');
+      const suffixInput = document.getElementById('test-suffix-input');
       const rawText = input.value.trim();
       const text = stripAnkiCloze(rawText);
       const previousText = stripAnkiCloze(contextInput.value.trim());
+      const suffixText = stripAnkiCloze(suffixInput.value.trim());
 
       if (!text) {
         showError('Please enter some text');
@@ -505,6 +513,9 @@
         const requestBody = { text };
         if (previousText) {
           requestBody.previous_text = previousText;
+        }
+        if (suffixText) {
+          requestBody.suffix_text = suffixText;
         }
 
         const response = await fetch('/api/test', {
@@ -660,6 +671,7 @@
               <span class="status-badge status-${data.status.toLowerCase()}">${data.status}</span>
             </div>
             ${data.previousText ? `<div class="cache-item-context">Context: ${escapeHtml(data.previousText)}</div>` : ''}
+            ${data.suffixText ? `<div class="cache-item-context">Suffix: ${escapeHtml(data.suffixText)}</div>` : ''}
           </div>
           <div class="cache-item-actions">
             <button class="icon-button secondary" onclick="downloadItem('${data.hash}')" title="Download">
