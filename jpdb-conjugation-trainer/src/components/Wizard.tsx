@@ -45,7 +45,7 @@ export function Wizard() {
   const [grammarVariantMode, setGrammarVariantMode] = useState<'random' | 'all'>('random');
   const [shuffleGrammar, setShuffleGrammar] = useState<boolean>(true);
   const [randomCount, setRandomCount] = useState<number>(10);
-  const [limitPerCategory, setLimitPerCategory] = useState<boolean>(false);
+  const [limitPerCategory, setLimitPerCategory] = useState<boolean>(true);
   const [cardsPerCategory, setCardsPerCategory] = useState<number>(1);
   const [enabledTypes, setEnabledTypes] = useState<ConjugationType[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CONJUGATION_TYPES);
