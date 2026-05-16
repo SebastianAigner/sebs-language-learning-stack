@@ -15,6 +15,7 @@ import { CONFIG } from './config.js';
  * @type {Object}
  * @property {Object} config - User configuration
  * @property {string} config.serviceUrl - URL of the vocabulary service
+ * @property {string} config.ttsPrefixText - Optional TTS prefix text sent as previous_text
  * @property {Object} session - Current review session data
  * @property {Array} session.queue - Queue of vocabulary items to review
  * @property {number} session.currentIndex - Current position in the queue
@@ -36,6 +37,7 @@ export const state = {
     serviceUrl: CONFIG.DEFAULT_SERVICE_URL,
     autoAdvanceCorrect: CONFIG.AUTO_ADVANCE_CORRECT,
     ttsEnabled: CONFIG.TTS_ENABLED,
+    ttsPrefixText: '',
     blacklist: ''
   },
 
@@ -130,6 +132,7 @@ export function resetState() {
     state.config.serviceUrl = CONFIG.DEFAULT_SERVICE_URL;
     state.config.autoAdvanceCorrect = CONFIG.AUTO_ADVANCE_CORRECT;
     state.config.ttsEnabled = CONFIG.TTS_ENABLED;
+    state.config.ttsPrefixText = '';
     state.config.blacklist = '';
     state.session = {
       queue: [],

@@ -69,12 +69,16 @@ header {
     100% { transform: scale(0.95); opacity: 0.8; }
 }
 
-#service-url {
+#service-url,
+#tts-prefix-text,
+#blacklist {
   padding: 8px 12px;
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.9rem;
   width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
 }
 
 .settings-content {

@@ -129,7 +129,7 @@ export function ResultView({
     }
     playedForResultRef.current = gradingResult;
 
-    const textToSpeak = gradingResult.reading ?? gradingResult.correctAnswer;
+    const textToSpeak = gradingResult.correctAnswer;
 
     // Play sound effect immediately
     if (gradingResult.isCorrect) {
@@ -163,7 +163,7 @@ export function ResultView({
   };
 
   const handleReplayTTS = () => {
-    const textToSpeak = gradingResult.reading ?? gradingResult.correctAnswer;
+    const textToSpeak = gradingResult.correctAnswer;
 
     if (textToSpeak !== '') {
       void replayTTS(textToSpeak);
@@ -171,7 +171,7 @@ export function ResultView({
   };
 
   const handleRegenerateTTS = () => {
-    const textToSpeak = gradingResult.reading ?? gradingResult.correctAnswer;
+    const textToSpeak = gradingResult.correctAnswer;
 
     if (textToSpeak !== '') {
       void regenerateTTS(textToSpeak);

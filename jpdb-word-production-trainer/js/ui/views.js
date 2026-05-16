@@ -94,9 +94,8 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
   // Check for exact match
   const isExact = isExactMatch(currentInput, correctJapanese);
   
-  // Play TTS pronunciation for all revealed answers, using reading (kana) if available
-  const ttsText = item.reading || correctJapanese;
-  playTTS(ttsText);
+  // Play TTS for the written form shown as the correct answer.
+  playTTS(correctJapanese, state.config.ttsPrefixText);
 
   if (isExact) {
     elements.comparisonGrid.classList.add('exact-match');

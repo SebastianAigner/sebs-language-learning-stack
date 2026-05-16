@@ -191,6 +191,13 @@ export function setupEventListeners(elements, render, callbacks) {
     saveState();
   });
 
+  // TTS prefix text input - update config on change
+  elements.ttsPrefixText.addEventListener('change', () => {
+    state.config.ttsPrefixText = elements.ttsPrefixText.value.trim();
+    console.log('TTS prefix text updated');
+    saveState();
+  });
+
   // Blacklist input - update config on change
   elements.blacklist.addEventListener('change', () => {
     state.config.blacklist = elements.blacklist.value;

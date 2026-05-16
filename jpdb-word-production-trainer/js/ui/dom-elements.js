@@ -37,6 +37,7 @@ export function initializeDOMElements() {
 
     // Config
     serviceUrl: document.getElementById('service-url'),
+    ttsPrefixText: document.getElementById('tts-prefix-text'),
     blacklist: document.getElementById('blacklist'),
     fetchBtn: document.getElementById('fetch-btn'),
     shuffleBtn: document.getElementById('shuffle-btn'),

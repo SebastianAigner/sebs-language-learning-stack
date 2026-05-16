@@ -29,13 +29,16 @@ export function playWrongSound() {
 }
 
 // Play TTS for the given text
-export function playTTS(text) {
+export function playTTS(text, prefixText = '') {
   if (!text) return;
   
   try {
     const baseUrl = CONFIG.TTS_BASE_URL.replace(/\/$/, ''); // Remove trailing slash if any
-    const previousText = "...。";
-    const url = `${baseUrl}/tts?text=${encodeURIComponent(text)}&previous_text=${encodeURIComponent(previousText)}`;
+    let url = `${baseUrl}/tts?text=${encodeURIComponent(text)}`;
+    const trimmedPrefixText = prefixText.trim();
+    if (trimmedPrefixText) {
+      url += `&previous_text=${encodeURIComponent(trimmedPrefixText)}`;
+    }
     const audio = new Audio(url);
     audio.volume = 1.0;
     audio.play().catch(err => {

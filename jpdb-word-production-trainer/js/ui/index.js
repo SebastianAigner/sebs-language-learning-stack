@@ -72,6 +72,9 @@ export function setupEventListeners(callbacks) {
 // Initialize service URL input and config with current value
 export function updateConfigInputs() {
   updateServiceUrlField(elements, state.config.serviceUrl);
+  if (elements.ttsPrefixText) {
+    elements.ttsPrefixText.value = state.config.ttsPrefixText || '';
+  }
   if (elements.blacklist) {
     elements.blacklist.value = state.config.blacklist || '';
   }

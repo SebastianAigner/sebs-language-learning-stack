@@ -2,7 +2,7 @@
   "name": "jpdb-tts-service",
   "version": "1.0.0",
   "type": "module",
-  "description": "Japanese TTS microservice using ElevenLabs",
+  "description": "Japanese TTS microservice using Azure Speech, ElevenLabs, or OpenRouter Speech",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
@@ -17,7 +17,9 @@
   "keywords": [
     "tts",
     "japanese",
-    "elevenlabs"
+    "elevenlabs",
+    "azure",
+    "openrouter"
   ],
   "author": "",
   "license": "MIT",

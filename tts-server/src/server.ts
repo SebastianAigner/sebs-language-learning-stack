@@ -6,39 +6,66 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlink
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
-import 'dotenv/config';
+import { config as loadDotenv } from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const repositoryRoot = join(__dirname, '../..');
+const publicDir = join(__dirname, '../public');
+const defaultPreviousText = '[japanese text, clearly enunciated]';
+
+loadEnvironment();
 
 // Configuration
+type TtsProvider = 'elevenlabs' | 'azure' | 'openrouter';
+type OpenRouterSpeechFormat = 'mp3' | 'pcm';
+type CachedAudioExtension = 'mp3' | 'wav';
+
 interface Config {
   port: number;
-  provider: 'elevenlabs' | 'azure';
+  provider: TtsProvider;
   // ElevenLabs settings
   voiceId: string;
   model: string;
   // Azure settings
   azureRegion: string;
   azureVoice: string;
+  // OpenRouter settings
+  openRouterBaseUrl: string;
+  openRouterModel: string;
+  openRouterVoice: string;
+  openRouterResponseFormat: OpenRouterSpeechFormat;
+  openRouterSpeed?: number;
+  openRouterProvider?: Record<string, unknown>;
+  openRouterPcmSampleRate: number;
   // Common settings
   cacheDir: string;
   maxTextLength: number;
+  defaultPreviousText: string;
 }
 
 const envPort = Number(process.env.TTS_SERVER_PORT ?? process.env.PORT);
 const CONFIG: Config = {
   port: !Number.isNaN(envPort) && envPort !== 0 ? envPort : 5065,
-  provider: (process.env.TTS_PROVIDER as 'elevenlabs' | 'azure' | undefined) ?? 'azure',
+  provider: readTtsProvider(),
   // ElevenLabs settings
   voiceId: process.env.VOICE_ID ?? '3JDquces8E8bkmvbh6Bc',
   model: process.env.MODEL ?? 'eleven_flash_v2_5',
   // Azure settings
   azureRegion: process.env.AZURE_REGION ?? 'swedencentral',
   azureVoice: process.env.AZURE_VOICE ?? 'ja-JP-Nanami:DragonHDLatestNeural',
+  // OpenRouter settings
+  openRouterBaseUrl: (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/$/, ''),
+  openRouterModel: process.env.OPENROUTER_TTS_MODEL ?? 'google/gemini-3.1-flash-tts-preview',
+  openRouterVoice: process.env.OPENROUTER_TTS_VOICE ?? 'Aoede',
+  openRouterResponseFormat: readOpenRouterSpeechFormat(),
+  openRouterSpeed: readPositiveNumber('OPENROUTER_TTS_SPEED', 1),
+  openRouterProvider: readOpenRouterProviderOptions(),
+  openRouterPcmSampleRate: readPositiveNumber('OPENROUTER_TTS_PCM_SAMPLE_RATE', 24000) ?? 24000,
   // Common settings
   cacheDir: join(__dirname, '../cache'),
-  maxTextLength: 500
+  maxTextLength: 500,
+  defaultPreviousText: process.env.TTS_DEFAULT_PREVIOUS_TEXT ?? defaultPreviousText
 };
 
 // Types
@@ -47,6 +74,12 @@ interface CacheMetadata {
   previousText?: string;
   created: string;
   size: number;
+  provider?: TtsProvider;
+  model?: string;
+  voice?: string;
+  contentType?: string;
+  extension?: CachedAudioExtension;
+  openRouterGenerationId?: string;
 }
 
 interface CacheFileInfo {
@@ -55,6 +88,11 @@ interface CacheFileInfo {
   previousText?: string;
   size: number;
   created: string;
+  provider?: TtsProvider;
+  model?: string;
+  voice?: string;
+  contentType: string;
+  extension: CachedAudioExtension;
 }
 
 interface TtsRequestBody {
@@ -89,15 +127,145 @@ interface ElevenLabsRequest {
   seed?: number;
 }
 
+interface OpenRouterSpeechRequest {
+  input: string;
+  model: string;
+  voice: string;
+  response_format: OpenRouterSpeechFormat;
+  speed?: number;
+  provider?: Record<string, unknown>;
+}
+
+interface GeneratedAudio {
+  buffer: Buffer;
+  contentType: string;
+  extension: CachedAudioExtension;
+  openRouterGenerationId?: string;
+}
+
+interface CachedAudio {
+  audioPath: string;
+  contentType: string;
+  extension: CachedAudioExtension;
+}
+
+function loadEnvironment(): void {
+  const envPaths = [join(repositoryRoot, '.env'), join(__dirname, '../.env')];
+
+  for (const envPath of envPaths) {
+    if (existsSync(envPath)) {
+      loadDotenv({ path: envPath, override: false });
+    }
+  }
+}
+
+function readTtsProvider(): TtsProvider {
+  const provider = process.env.TTS_PROVIDER?.trim().toLowerCase();
+
+  if (provider === undefined || provider === '') {
+    return 'openrouter';
+  }
+
+  if (provider === 'elevenlabs' || provider === 'azure' || provider === 'openrouter') {
+    return provider;
+  }
+
+  console.warn(`Unknown TTS_PROVIDER "${provider}", defaulting to openrouter`);
+  return 'openrouter';
+}
+
+function readOpenRouterSpeechFormat(): OpenRouterSpeechFormat {
+  const format = process.env.OPENROUTER_TTS_RESPONSE_FORMAT?.trim().toLowerCase();
+
+  if (format === undefined || format === '') {
+    return 'pcm';
+  }
+
+  if (format === 'mp3' || format === 'pcm') {
+    return format;
+  }
+
+  console.warn(`Unknown OPENROUTER_TTS_RESPONSE_FORMAT "${format}", defaulting to pcm`);
+  return 'pcm';
+}
+
+function readPositiveNumber(name: string, defaultValue?: number): number | undefined {
+  const rawValue = process.env[name]?.trim();
+
+  if (rawValue === undefined || rawValue === '') {
+    return defaultValue;
+  }
+
+  const value = Number(rawValue);
+  if (Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  console.warn(`Ignoring invalid ${name}; expected a positive number`);
+  return defaultValue;
+}
+
+function readOpenRouterProviderOptions(): Record<string, unknown> | undefined {
+  const rawValue = process.env.OPENROUTER_TTS_PROVIDER?.trim();
+
+  if (rawValue === undefined || rawValue === '') {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as unknown;
+    if (isPlainObject(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // Fall through to warning below.
+  }
+
+  console.warn('Ignoring invalid OPENROUTER_TTS_PROVIDER; expected a JSON object');
+  return undefined;
+}
+
+function loadOpenRouterApiKey(): string {
+  const envKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (envKey !== undefined && envKey !== '') {
+    return envKey;
+  }
+
+  const configuredKeyPath = process.env.OPENROUTER_API_KEY_FILE?.trim();
+  const candidatePaths = [
+    ...(configuredKeyPath !== undefined && configuredKeyPath !== '' ? [configuredKeyPath] : []),
+    join(repositoryRoot, 'openrouter.txt'),
+    join(__dirname, '../openrouter.txt')
+  ];
+
+  for (const keyPath of candidatePaths) {
+    if (!existsSync(keyPath)) {
+      continue;
+    }
+
+    const fileKey = readFileSync(keyPath, 'utf-8').trim();
+    if (fileKey !== '') {
+      return fileKey;
+    }
+  }
+
+  return '';
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 // Initialize Express app
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(publicDir));
 
 // Load API keys
 const ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY ?? '';
 const AZURE_API_KEY: string = process.env.AZURE_API_KEY ?? '';
+const OPENROUTER_API_KEY: string = loadOpenRouterApiKey();
 
 // SSE clients
 let sseClients: Response[] = [];
@@ -116,23 +284,34 @@ function broadcastLiveFeedEvent(event: Omit<LiveFeedEvent, 'id' | 'timestamp'>):
   sseClients.forEach(client => client.write(data));
 }
 
-if (CONFIG.provider === 'elevenlabs') {
-  if (ELEVENLABS_API_KEY === '') {
-    console.error('✗ ELEVENLABS_API_KEY not found in environment');
-    console.error('  Please set ELEVENLABS_API_KEY in .env in the project root');
-    process.exit(1);
-  } else {
-    console.log('✓ Loaded ElevenLabs API key from environment');
-  }
-} else {
-  // CONFIG.provider === 'azure'
-  if (AZURE_API_KEY === '') {
-    console.error('✗ AZURE_API_KEY not found in environment');
-    console.error('  Please set AZURE_API_KEY in .env in the project root');
-    process.exit(1);
-  } else {
-    console.log('✓ Loaded Azure Speech API key from environment');
-  }
+switch (CONFIG.provider) {
+  case 'elevenlabs':
+    if (ELEVENLABS_API_KEY === '') {
+      console.error('✗ ELEVENLABS_API_KEY not found in environment');
+      console.error('  Please set ELEVENLABS_API_KEY in .env in the project root');
+      process.exit(1);
+    } else {
+      console.log('✓ Loaded ElevenLabs API key from environment');
+    }
+    break;
+  case 'azure':
+    if (AZURE_API_KEY === '') {
+      console.error('✗ AZURE_API_KEY not found in environment');
+      console.error('  Please set AZURE_API_KEY in .env in the project root');
+      process.exit(1);
+    } else {
+      console.log('✓ Loaded Azure Speech API key from environment');
+    }
+    break;
+  case 'openrouter':
+    if (OPENROUTER_API_KEY === '') {
+      console.error('✗ OPENROUTER_API_KEY not found in environment or openrouter.txt');
+      console.error('  Please set OPENROUTER_API_KEY in .env in the project root');
+      process.exit(1);
+    } else {
+      console.log('✓ Loaded OpenRouter API key');
+    }
+    break;
 }
 
 // Ensure cache directory exists
@@ -145,24 +324,92 @@ if (!existsSync(CONFIG.cacheDir)) {
  * Generate SHA-256 hash of text for cache key
  */
 function generateCacheKey(text: string, previousText?: string): string {
-  const cacheInput = previousText !== undefined && previousText !== '' ? `${previousText}::${text}` : text;
+  const cacheInput = JSON.stringify({
+    text,
+    previousText: previousText !== undefined && previousText !== '' ? previousText : null,
+    settings: getProviderCacheSettings()
+  });
+
   return createHash('sha256').update(cacheInput).digest('hex');
+}
+
+function getProviderCacheSettings(): Record<string, unknown> {
+  switch (CONFIG.provider) {
+    case 'elevenlabs':
+      return {
+        provider: CONFIG.provider,
+        voiceId: CONFIG.voiceId,
+        model: CONFIG.model
+      };
+    case 'azure':
+      return {
+        provider: CONFIG.provider,
+        region: CONFIG.azureRegion,
+        voice: CONFIG.azureVoice
+      };
+    case 'openrouter':
+      return {
+        provider: CONFIG.provider,
+        model: CONFIG.openRouterModel,
+        voice: CONFIG.openRouterVoice,
+        responseFormat: CONFIG.openRouterResponseFormat,
+        speed: CONFIG.openRouterSpeed ?? null,
+        providerOptions: normalizeForCache(CONFIG.openRouterProvider)
+      };
+  }
+}
+
+function normalizeForCache(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeForCache);
+  }
+
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, normalizeForCache(value[key])])
+    );
+  }
+
+  return value;
 }
 
 /**
  * Save metadata for cached file
  */
-function saveCacheMetadata(hash: string, text: string, size: number, previousText?: string): void {
+function saveCacheMetadata(hash: string, text: string, audio: GeneratedAudio, previousText?: string): void {
+  const providerMetadata = getProviderMetadata();
   const metadata: CacheMetadata = {
     text,
     created: new Date().toISOString(),
-    size
+    size: audio.buffer.length,
+    provider: CONFIG.provider,
+    contentType: audio.contentType,
+    extension: audio.extension,
+    ...providerMetadata
   };
+
   if (previousText !== undefined && previousText !== '') {
     metadata.previousText = previousText;
   }
+  if (audio.openRouterGenerationId !== undefined && audio.openRouterGenerationId !== '') {
+    metadata.openRouterGenerationId = audio.openRouterGenerationId;
+  }
+
   const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
   writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+}
+
+function getProviderMetadata(): Pick<CacheMetadata, 'model' | 'voice'> {
+  switch (CONFIG.provider) {
+    case 'elevenlabs':
+      return { model: CONFIG.model, voice: CONFIG.voiceId };
+    case 'azure':
+      return { model: CONFIG.azureRegion, voice: CONFIG.azureVoice };
+    case 'openrouter':
+      return { model: CONFIG.openRouterModel, voice: CONFIG.openRouterVoice };
+  }
 }
 
 /**
@@ -185,7 +432,7 @@ function loadCacheMetadata(hash: string): CacheMetadata | null {
  * Get cache statistics
  */
 function getCacheStats(): CacheStats {
-  const files = readdirSync(CONFIG.cacheDir).filter(f => f.endsWith('.mp3'));
+  const files = readdirSync(CONFIG.cacheDir).filter(isAudioCacheFile);
   const stats: CacheStats = {
     totalFiles: files.length,
     totalSize: 0,
@@ -193,7 +440,8 @@ function getCacheStats(): CacheStats {
   };
 
   for (const file of files) {
-    const hash = file.replace('.mp3', '');
+    const extension = getAudioExtension(file);
+    const hash = stripAudioExtension(file);
     const filePath = join(CONFIG.cacheDir, file);
     const fileStat = statSync(filePath);
     const metadata = loadCacheMetadata(hash);
@@ -203,10 +451,21 @@ function getCacheStats(): CacheStats {
       hash,
       text: metadata?.text ?? 'Unknown',
       size: fileStat.size,
-      created: metadata?.created ?? fileStat.birthtime.toISOString()
+      created: metadata?.created ?? fileStat.birthtime.toISOString(),
+      contentType: metadata?.contentType ?? contentTypeForExtension(extension),
+      extension
     };
     if (metadata?.previousText !== undefined && metadata.previousText !== '') {
       fileInfo.previousText = metadata.previousText;
+    }
+    if (metadata?.provider !== undefined) {
+      fileInfo.provider = metadata.provider;
+    }
+    if (metadata?.model !== undefined) {
+      fileInfo.model = metadata.model;
+    }
+    if (metadata?.voice !== undefined) {
+      fileInfo.voice = metadata.voice;
     }
     stats.files.push(fileInfo);
   }
@@ -215,6 +474,56 @@ function getCacheStats(): CacheStats {
   stats.files.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
 
   return stats;
+}
+
+function isAudioCacheFile(fileName: string): boolean {
+  return fileName.endsWith('.mp3') || fileName.endsWith('.wav');
+}
+
+function getAudioExtension(fileName: string): CachedAudioExtension {
+  return fileName.endsWith('.wav') ? 'wav' : 'mp3';
+}
+
+function stripAudioExtension(fileName: string): string {
+  return fileName.replace(/\.(mp3|wav)$/u, '');
+}
+
+function contentTypeForExtension(extension: CachedAudioExtension): string {
+  return extension === 'wav' ? 'audio/wav' : 'audio/mpeg';
+}
+
+function getCachedAudio(hash: string): CachedAudio | null {
+  const metadata = loadCacheMetadata(hash);
+  const preferredExtension = metadata?.extension;
+  const candidateExtensions: CachedAudioExtension[] =
+    preferredExtension !== undefined ? [preferredExtension, 'mp3', 'wav'] : ['mp3', 'wav'];
+
+  for (const extension of Array.from(new Set(candidateExtensions))) {
+    const audioPath = join(CONFIG.cacheDir, `${hash}.${extension}`);
+    if (existsSync(audioPath)) {
+      return {
+        audioPath,
+        contentType: metadata?.contentType ?? contentTypeForExtension(extension),
+        extension
+      };
+    }
+  }
+
+  return null;
+}
+
+function setDownloadHeader(res: Response, text: string, extension: CachedAudioExtension): void {
+  const sanitizedText = text.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
+  const filename = `${sanitizedText}.${extension}`;
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+}
+
+function resolvePreviousText(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return CONFIG.defaultPreviousText !== '' ? CONFIG.defaultPreviousText : undefined;
 }
 
 /**
@@ -340,33 +649,199 @@ async function callAzureSpeechAPI(text: string, previousText?: string): Promise<
 }
 
 /**
+ * Call OpenRouter Speech API to generate TTS
+ */
+async function callOpenRouterSpeechAPI(text: string, previousText?: string): Promise<GeneratedAudio> {
+  const input = previousText !== undefined && previousText !== '' ? `${previousText}\n${text}` : text;
+
+  console.log(`Calling OpenRouter Speech API for text: "${text}" (model: ${CONFIG.openRouterModel}, voice: ${CONFIG.openRouterVoice}, format: ${CONFIG.openRouterResponseFormat})`);
+
+  const requestBody: OpenRouterSpeechRequest = {
+    input,
+    model: CONFIG.openRouterModel,
+    voice: CONFIG.openRouterVoice,
+    response_format: CONFIG.openRouterResponseFormat
+  };
+
+  if (CONFIG.openRouterSpeed !== undefined) {
+    requestBody.speed = CONFIG.openRouterSpeed;
+  }
+
+  if (CONFIG.openRouterProvider !== undefined) {
+    requestBody.provider = CONFIG.openRouterProvider;
+  }
+
+  const response = await fetch(`${CONFIG.openRouterBaseUrl}/audio/speech`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': `http://localhost:${CONFIG.port}`,
+      'X-Title': 'Sebs Language Learning TTS Server'
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter Speech API error (${response.status}): ${extractErrorMessage(errorText)}`);
+  }
+
+  const contentType = normalizeOpenRouterContentType(
+    response.headers.get('content-type') ?? contentTypeForOpenRouterFormat(CONFIG.openRouterResponseFormat),
+    CONFIG.openRouterResponseFormat
+  );
+  const openRouterGenerationId = response.headers.get('x-generation-id') ?? undefined;
+  const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+  if (shouldWrapPcmAsWav(contentType, CONFIG.openRouterResponseFormat)) {
+    const sampleRate = readNumberContentTypeParameter(contentType, 'rate') ?? CONFIG.openRouterPcmSampleRate;
+    const channels = readNumberContentTypeParameter(contentType, 'channels') ?? 1;
+
+    return {
+      buffer: pcmToWavBuffer(audioBuffer, sampleRate, channels),
+      contentType: 'audio/wav',
+      extension: 'wav',
+      openRouterGenerationId
+    };
+  }
+
+  return {
+    buffer: audioBuffer,
+    contentType,
+    extension: audioExtensionForOpenRouterResponse(contentType, CONFIG.openRouterResponseFormat),
+    openRouterGenerationId
+  };
+}
+
+function contentTypeForOpenRouterFormat(format: OpenRouterSpeechFormat): string {
+  return format === 'pcm' ? `audio/pcm;rate=${CONFIG.openRouterPcmSampleRate};channels=1` : 'audio/mpeg';
+}
+
+function normalizeOpenRouterContentType(contentType: string, format: OpenRouterSpeechFormat): string {
+  if (format === 'mp3' && contentType.toLowerCase().includes('octet-stream')) {
+    return 'audio/mpeg';
+  }
+
+  return contentType;
+}
+
+function shouldWrapPcmAsWav(contentType: string, format: OpenRouterSpeechFormat): boolean {
+  const normalizedContentType = contentType.toLowerCase();
+  return format === 'pcm' || normalizedContentType.includes('pcm') || normalizedContentType.includes('l16');
+}
+
+function audioExtensionForOpenRouterResponse(
+  contentType: string,
+  format: OpenRouterSpeechFormat
+): CachedAudioExtension {
+  const normalizedContentType = contentType.toLowerCase();
+  if (normalizedContentType.includes('wav') || normalizedContentType.includes('wave')) {
+    return 'wav';
+  }
+
+  return format === 'pcm' ? 'wav' : 'mp3';
+}
+
+function readNumberContentTypeParameter(contentType: string, name: string): number | undefined {
+  const match = contentType.match(new RegExp(`(?:^|;)\\s*${name}=([0-9]+)`, 'i'));
+  return match ? Number(match[1]) : undefined;
+}
+
+function pcmToWavBuffer(pcmBuffer: Buffer, sampleRate: number, channels: number): Buffer {
+  const bitsPerSample = 16;
+  const dataSize = pcmBuffer.length;
+  const byteRate = (sampleRate * channels * bitsPerSample) / 8;
+  const blockAlign = (channels * bitsPerSample) / 8;
+  const wavHeader = Buffer.alloc(44);
+
+  wavHeader.write('RIFF', 0, 'ascii');
+  wavHeader.writeUInt32LE(36 + dataSize, 4);
+  wavHeader.write('WAVE', 8, 'ascii');
+  wavHeader.write('fmt ', 12, 'ascii');
+  wavHeader.writeUInt32LE(16, 16);
+  wavHeader.writeUInt16LE(1, 20);
+  wavHeader.writeUInt16LE(channels, 22);
+  wavHeader.writeUInt32LE(sampleRate, 24);
+  wavHeader.writeUInt32LE(byteRate, 28);
+  wavHeader.writeUInt16LE(blockAlign, 32);
+  wavHeader.writeUInt16LE(bitsPerSample, 34);
+  wavHeader.write('data', 36, 'ascii');
+  wavHeader.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([wavHeader, pcmBuffer]);
+}
+
+function extractErrorMessage(raw: string): string {
+  if (raw === '') {
+    return 'No error details returned.';
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { error?: string | { message?: string }; message?: string };
+
+    if (typeof parsed.error === 'string') {
+      return parsed.error;
+    }
+
+    if (parsed.error?.message !== undefined && parsed.error.message !== '') {
+      return parsed.error.message;
+    }
+
+    if (parsed.message !== undefined && parsed.message !== '') {
+      return parsed.message;
+    }
+  } catch {
+    return raw.slice(0, 500);
+  }
+
+  return raw.slice(0, 500);
+}
+
+/**
  * Generate and cache TTS audio
  */
-async function generateAndCacheTTS(text: string, hash: string, previousText?: string, seed?: number): Promise<string> {
+async function generateAndCacheTTS(text: string, hash: string, previousText?: string, seed?: number): Promise<CachedAudio> {
   // Call the appropriate TTS provider
-  let audioBuffer: Buffer;
+  let audio: GeneratedAudio;
 
   if (CONFIG.provider === 'elevenlabs') {
-    audioBuffer = await callElevenLabsAPI(text, previousText, seed);
-  } else {
-    // CONFIG.provider === 'azure'
+    audio = {
+      buffer: await callElevenLabsAPI(text, previousText, seed),
+      contentType: 'audio/mpeg',
+      extension: 'mp3'
+    };
+  } else if (CONFIG.provider === 'azure') {
     // Azure doesn't support seed parameter
     if (seed !== undefined) {
       console.warn('Note: Azure Speech API does not support seed parameter (ignored)');
     }
-    audioBuffer = await callAzureSpeechAPI(text, previousText);
+    audio = {
+      buffer: await callAzureSpeechAPI(text, previousText),
+      contentType: 'audio/mpeg',
+      extension: 'mp3'
+    };
+  } else {
+    if (seed !== undefined) {
+      console.warn('Note: OpenRouter Speech API does not support seed parameter (ignored)');
+    }
+    audio = await callOpenRouterSpeechAPI(text, previousText);
   }
 
   // Save to cache
-  const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
-  writeFileSync(audioPath, audioBuffer);
+  const audioPath = join(CONFIG.cacheDir, `${hash}.${audio.extension}`);
+  writeFileSync(audioPath, audio.buffer);
 
   // Save metadata
-  saveCacheMetadata(hash, text, audioBuffer.length, previousText);
+  saveCacheMetadata(hash, text, audio, previousText);
 
-  console.log(`✓ Cached TTS for "${text}" (${hash}.mp3)`);
+  console.log(`✓ Cached TTS for "${text}" (${hash}.${audio.extension})`);
 
-  return audioPath;
+  return {
+    audioPath,
+    contentType: audio.contentType,
+    extension: audio.extension
+  };
 }
 
 // Routes
@@ -375,14 +850,18 @@ async function generateAndCacheTTS(text: string, hash: string, previousText?: st
  * GET / - Serve management UI
  */
 app.get('/', (_req: Request, res: Response) => {
-  res.sendFile(join(__dirname, '../public', 'index.html'));
+  res.sendFile(join(publicDir, 'index.html'));
 });
 
 /**
  * GET /health - Health check endpoint
  */
 app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    provider: CONFIG.provider,
+    timestamp: new Date().toISOString()
+  });
 });
 
 /**
@@ -426,34 +905,30 @@ app.get('/tts', (req: Request, res: Response): void => {
   }
 
   const textValue = text;
-  const previousText = previous_text !== undefined && typeof previous_text === 'string' ? previous_text : undefined;
+  const previousText = resolvePreviousText(previous_text);
 
   // Generate cache key
   const hash = generateCacheKey(textValue, previousText);
-  const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
-
-  // If download is requested, set headers
-  if (req.query.download === 'true') {
-    const sanitizedText = textValue.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
-    const filename = `${sanitizedText}.mp3`;
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
-  }
 
   // Check if cached
-  if (existsSync(audioPath)) {
-    console.log(`Cache HIT for "${textValue}" (${hash}.mp3)`);
+  const cachedAudio = getCachedAudio(hash);
+  if (cachedAudio !== null) {
+    console.log(`Cache HIT for "${textValue}" (${hash}.${cachedAudio.extension})`);
     broadcastLiveFeedEvent({
       text: textValue,
       previousText,
       hash,
       status: 'HIT'
     });
+    if (req.query.download === 'true') {
+      setDownloadHeader(res, textValue, cachedAudio.extension);
+    }
     res.set({
-      'Content-Type': 'audio/mpeg',
+      'Content-Type': cachedAudio.contentType,
       'Cache-Control': 'public, max-age=31536000',
       'X-Cache-Status': 'HIT'
     });
-    res.sendFile(audioPath);
+    res.sendFile(cachedAudio.audioPath);
     return;
   }
 
@@ -462,7 +937,7 @@ app.get('/tts', (req: Request, res: Response): void => {
 
   void (async (): Promise<void> => {
     try {
-      await generateAndCacheTTS(textValue, hash, previousText);
+      const generatedAudio = await generateAndCacheTTS(textValue, hash, previousText);
 
       broadcastLiveFeedEvent({
         text: textValue,
@@ -471,12 +946,15 @@ app.get('/tts', (req: Request, res: Response): void => {
         status: 'MISS'
       });
 
+      if (req.query.download === 'true') {
+        setDownloadHeader(res, textValue, generatedAudio.extension);
+      }
       res.set({
-        'Content-Type': 'audio/mpeg',
+        'Content-Type': generatedAudio.contentType,
         'Cache-Control': 'public, max-age=31536000',
         'X-Cache-Status': 'MISS'
       });
-      res.sendFile(audioPath);
+      res.sendFile(generatedAudio.audioPath);
     } catch (error) {
       console.error('TTS generation failed:', error);
       res.status(500).json({
@@ -507,16 +985,20 @@ app.post('/api/cache/clear', (_req: Request, res: Response) => {
   try {
     const files = readdirSync(CONFIG.cacheDir);
     let deleted = 0;
+    let deletedAudioFiles = 0;
 
     for (const file of files) {
       if (file === '.gitkeep') continue;
       const filePath = join(CONFIG.cacheDir, file);
       unlinkSync(filePath);
       deleted++;
+      if (isAudioCacheFile(file)) {
+        deletedAudioFiles++;
+      }
     }
 
     console.log(`✓ Cleared cache (deleted ${deleted} files)`);
-    res.json({ success: true, deleted: Math.floor(deleted / 2) }); // Divide by 2 (mp3 + json)
+    res.json({ success: true, deleted: deletedAudioFiles });
   } catch (error) {
     console.error('Failed to clear cache:', error);
     res.status(500).json({ error: 'Failed to clear cache' });
@@ -530,14 +1012,19 @@ app.delete('/api/cache/:hash', (req: Request<{ hash: string }>, res: Response) =
   const { hash } = req.params;
 
   try {
-    const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
+    const audioPaths = [
+      join(CONFIG.cacheDir, `${hash}.mp3`),
+      join(CONFIG.cacheDir, `${hash}.wav`)
+    ];
     const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
 
     let deleted = false;
 
-    if (existsSync(audioPath)) {
-      unlinkSync(audioPath);
-      deleted = true;
+    for (const audioPath of audioPaths) {
+      if (existsSync(audioPath)) {
+        unlinkSync(audioPath);
+        deleted = true;
+      }
     }
 
     if (existsSync(metadataPath)) {
@@ -545,7 +1032,7 @@ app.delete('/api/cache/:hash', (req: Request<{ hash: string }>, res: Response) =
     }
 
     if (deleted) {
-      console.log(`✓ Deleted cached file ${hash}.mp3`);
+      console.log(`✓ Deleted cached audio ${hash}`);
       res.json({ success: true });
     } else {
       res.status(404).json({ error: 'File not found' });
@@ -561,25 +1048,23 @@ app.delete('/api/cache/:hash', (req: Request<{ hash: string }>, res: Response) =
  */
 app.get('/api/cache/audio/:hash', (req: Request<{ hash: string }>, res: Response) => {
   const { hash } = req.params;
-  const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
+  const cachedAudio = getCachedAudio(hash);
 
-  if (!existsSync(audioPath)) {
+  if (cachedAudio === null) {
     res.status(404).json({ error: 'File not found' });
     return;
   }
 
   const metadata = loadCacheMetadata(hash);
   if (req.query.download === 'true') {
-    const sanitizedText = (metadata?.text ?? 'tts_audio').replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
-    const filename = `${sanitizedText}.mp3`;
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    setDownloadHeader(res, metadata?.text ?? 'tts_audio', cachedAudio.extension);
   }
 
   res.set({
-    'Content-Type': 'audio/mpeg',
+    'Content-Type': cachedAudio.contentType,
     'Cache-Control': 'public, max-age=31536000'
   });
-  res.sendFile(audioPath);
+  res.sendFile(cachedAudio.audioPath);
 });
 
 /**
@@ -594,18 +1079,23 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
   }
 
   const textValue = text;
-  const previousText = previous_text !== undefined && typeof previous_text === 'string' ? previous_text : undefined;
+  const previousText = resolvePreviousText(previous_text);
 
   void (async (): Promise<void> => {
     try {
       const hash = generateCacheKey(textValue, previousText);
-      const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
+      const audioPaths = [
+        join(CONFIG.cacheDir, `${hash}.mp3`),
+        join(CONFIG.cacheDir, `${hash}.wav`)
+      ];
       const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
 
       // Delete existing cached files
-      if (existsSync(audioPath)) {
-        unlinkSync(audioPath);
-        console.log(`✓ Deleted old cached audio ${hash}.mp3`);
+      for (const audioPath of audioPaths) {
+        if (existsSync(audioPath)) {
+          unlinkSync(audioPath);
+          console.log(`✓ Deleted old cached audio ${audioPath}`);
+        }
       }
       if (existsSync(metadataPath)) {
         unlinkSync(metadataPath);
@@ -656,13 +1146,12 @@ app.post('/api/test', (req: Request<unknown, unknown, TtsRequestBody>, res: Resp
   }
 
   const textValue = text;
-  const previousText = previous_text !== undefined && typeof previous_text === 'string' ? previous_text : undefined;
+  const previousText = resolvePreviousText(previous_text);
 
   void (async (): Promise<void> => {
     try {
       const hash = generateCacheKey(textValue, previousText);
-      const audioPath = join(CONFIG.cacheDir, `${hash}.mp3`);
-      const cached = existsSync(audioPath);
+      const cached = getCachedAudio(hash) !== null;
 
       if (!cached) {
         await generateAndCacheTTS(textValue, hash, previousText);
@@ -701,10 +1190,13 @@ app.listen(CONFIG.port, () => {
   if (CONFIG.provider === 'elevenlabs') {
     console.log(`    Voice:    ${CONFIG.voiceId}`);
     console.log(`    Model:    ${CONFIG.model}`);
-  } else {
-    // CONFIG.provider === 'azure'
+  } else if (CONFIG.provider === 'azure') {
     console.log(`    Region:   ${CONFIG.azureRegion}`);
     console.log(`    Voice:    ${CONFIG.azureVoice}`);
+  } else {
+    console.log(`    Model:    ${CONFIG.openRouterModel}`);
+    console.log(`    Voice:    ${CONFIG.openRouterVoice}`);
+    console.log(`    Format:   ${CONFIG.openRouterResponseFormat.toUpperCase()}${CONFIG.openRouterResponseFormat === 'pcm' ? ' (served as WAV)' : ''}`);
   }
 
   console.log(`    Cache:    ${CONFIG.cacheDir}`);

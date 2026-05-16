@@ -41,7 +41,7 @@ npm start
 - **[jpdb-word-production-trainer](./jpdb-word-production-trainer)**: Vocabulary review trainer with spaced repetition and production practice.
 
 ### Backend Services
-- **[tts-server](./tts-server)**: Japanese TTS microservice supporting ElevenLabs and Azure Speech.
+- **[tts-server](./tts-server)**: Japanese TTS microservice supporting Azure Speech, ElevenLabs, and OpenRouter Speech.
 - **[jpdb-review-transcriber](./jpdb-review-transcriber)**: Server to store and retrieve timestamped text entries.
 
 ### Browser Extensions

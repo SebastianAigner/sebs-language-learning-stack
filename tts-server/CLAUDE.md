@@ -1,12 +1,12 @@
 # CLAUDE.md - TTS Server
 
 ## Project Overview
-A Japanese Text-to-Speech microservice supporting ElevenLabs and Azure Speech APIs with caching.
+A Japanese Text-to-Speech microservice supporting ElevenLabs, Azure Speech, and OpenRouter Speech APIs with caching.
 
 ## Tech Stack
 - **Runtime**: Node.js with Express 5
 - **Language**: TypeScript
-- **TTS Providers**: ElevenLabs, Azure Cognitive Services
+- **TTS Providers**: ElevenLabs, Azure Cognitive Services, OpenRouter Speech
 - **Testing**: Vitest
 
 ## Development Workflow
@@ -42,8 +42,13 @@ A Japanese Text-to-Speech microservice supporting ElevenLabs and Azure Speech AP
 - Use proper TypeScript generics for Express Request types: `Request<Params, ResBody, ReqBody>`
 
 ## Environment Variables
-- `TTS_PROVIDER` - 'elevenlabs' or 'azure'
+- `TTS_PROVIDER` - 'elevenlabs', 'azure', or 'openrouter'
+- `TTS_DEFAULT_PREVIOUS_TEXT` - Default previous/context text when requests omit `previous_text`
 - `ELEVENLABS_API_KEY` - ElevenLabs API key
 - `AZURE_API_KEY` - Azure Speech API key
 - `AZURE_REGION` - Azure region (default: swedencentral)
+- `OPENROUTER_API_KEY` - OpenRouter API key
+- `OPENROUTER_TTS_MODEL` - OpenRouter speech model
+- `OPENROUTER_TTS_VOICE` - OpenRouter speech voice
+- `OPENROUTER_TTS_RESPONSE_FORMAT` - 'pcm' or 'mp3' (pcm is converted to WAV)
 - `TTS_SERVER_PORT` - Server port (default: 5065)

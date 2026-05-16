@@ -1,13 +1,13 @@
 # Japanese TTS Service
 
-Microservice for generating Japanese text-to-speech using Azure AI Speech or ElevenLabs API with intelligent file system caching.
+Microservice for generating Japanese text-to-speech using Azure AI Speech, ElevenLabs, or OpenRouter Speech with intelligent file system caching.
 
 > [!TIP]
-> **Azure AI Speech is the preferred provider** for Japanese. While still not perfect (especially with pitch accent and some kanji readings), it is significantly more reliable than ElevenLabs, which tends to make a lot more mistakes with Japanese pronunciation and context.
+> **OpenRouter Speech is the default provider for this stack**, using `google/gemini-3.1-flash-tts-preview` with the `Aoede` voice. Azure and ElevenLabs remain available as fallback providers.
 
 ## Features
 
-- **Multi-provider Support** - Supports both Azure AI Speech (preferred) and ElevenLabs Flash v2.5
+- **Multi-provider Support** - Supports Azure AI Speech (preferred), ElevenLabs Flash v2.5, and OpenRouter Speech
 - **High-Quality Japanese TTS** - Optimized for Japanese language learning context
 - **File System Caching** - SHA-256 hashed filenames prevent duplicate API calls
 - **Management UI** - Web dashboard for monitoring and testing
@@ -19,12 +19,13 @@ Microservice for generating Japanese text-to-speech using Azure AI Speech or Ele
 - Node.js 18+ (for native fetch and --watch support)
 - Azure AI Speech API key and Region (preferred)
 - ElevenLabs API key ([get one here](https://elevenlabs.io))
+- OpenRouter API key (if using `TTS_PROVIDER=openrouter`)
 - Port 5065 available
 
 ## Setup
 
 1. **Configure Environment**:
-   This service uses the centralized `.env` file in the project root. Ensure `ELEVENLABS_API_KEY` and/or `AZURE_API_KEY` are set there.
+   This service uses the centralized `.env` file in the project root. Ensure the API key for your selected provider is set there.
 
 2. **Install dependencies**:
    ```bash
@@ -48,15 +49,15 @@ Generate or serve cached TTS audio.
 
 **Parameters:**
 - `text` (required) - Japanese text to convert to speech (max 500 characters)
-- `previous_text` (optional) - Previous text context to improve TTS naturalness (e.g. preceding sentence). For Azure AI, this is prepended at volume "silent" to provide context without being audible.
+- `previous_text` (optional) - Previous text context to improve TTS naturalness (e.g. preceding sentence). If omitted, the service uses `TTS_DEFAULT_PREVIOUS_TEXT`, which defaults to `[japanese text, clearly enunciated]`. Azure prepends it at near-silent volume, ElevenLabs receives it as provider context, and OpenRouter uses it as a prompt prefix before the requested text.
 
 **Response:**
-- Success (200): MP3 audio stream
+- Success (200): Audio stream. Azure and ElevenLabs are MP3; OpenRouter PCM responses are converted to WAV for browser playback.
 - Error (400): Missing or invalid text
 - Error (500): TTS generation failed
 
 **Headers:**
-- `Content-Type: audio/mpeg`
+- `Content-Type: audio/mpeg` or `audio/wav`
 - `Cache-Control: public, max-age=31536000`
 - `X-Cache-Status: HIT | MISS`
 
@@ -131,17 +132,30 @@ Test TTS generation with sample text.
 The service can be configured via environment variables:
 
 ```bash
+TTS_PROVIDER=openrouter                # openrouter, azure, or elevenlabs
+TTS_DEFAULT_PREVIOUS_TEXT=[japanese text, clearly enunciated]
 PORT=5065                              # Server port (default: 5065)
 VOICE_ID=3JDquces8E8bkmvbh6Bc          # ElevenLabs voice ID
 MODEL=eleven_flash_v2_5                # ElevenLabs model
+AZURE_REGION=swedencentral             # Azure region
+AZURE_VOICE=ja-JP-Nanami:DragonHDLatestNeural
+OPENROUTER_API_KEY=...                 # OpenRouter key
+OPENROUTER_TTS_MODEL=google/gemini-3.1-flash-tts-preview
+OPENROUTER_TTS_VOICE=Aoede
+OPENROUTER_TTS_RESPONSE_FORMAT=pcm     # pcm is converted to WAV; mp3 is served as MP3
+OPENROUTER_TTS_SPEED=1
 ```
 
-Default configuration (in `server.js`):
+Default configuration (in `src/server.ts`):
 ```javascript
 const CONFIG = {
   port: 5065,
+  provider: 'openrouter',
+  defaultPreviousText: '[japanese text, clearly enunciated]',
   voiceId: '3JDquces8E8bkmvbh6Bc',    // Japanese voice
   model: 'eleven_flash_v2_5',          // Fast Flash model
+  openRouterModel: 'google/gemini-3.1-flash-tts-preview',
+  openRouterVoice: 'Aoede',
   cacheDir: './cache',
   maxTextLength: 500
 };
@@ -151,10 +165,10 @@ const CONFIG = {
 
 ### How Caching Works
 
-1. Text is hashed using SHA-256
-2. Check if `cache/{hash}.mp3` exists
+1. Text, previous context, provider, voice, model, and format settings are hashed using SHA-256
+2. Check if `cache/{hash}.mp3` or `cache/{hash}.wav` exists
 3. If exists: serve immediately (cache HIT)
-4. If not: call ElevenLabs API, save to cache, serve (cache MISS)
+4. If not: call the selected TTS provider, save to cache, serve (cache MISS)
 
 ### Cache Structure
 
@@ -162,7 +176,7 @@ const CONFIG = {
 cache/
 ├── a1b2c3d4...mp3     # Audio file
 ├── a1b2c3d4...json    # Metadata (text, timestamp, size)
-├── e5f6g7h8...mp3
+├── e5f6g7h8...wav     # OpenRouter PCM converted to WAV
 ├── e5f6g7h8...json
 └── .gitkeep
 ```
@@ -176,7 +190,7 @@ cache/
 
 ### Cache Size
 
-- Each MP3: ~10-50 KB
+- Each audio file: ~10-50 KB for short clips, depending on provider and format
 - Typical usage: ~1000 unique conjugations = ~50 MB
 - Cache persists across restarts
 - Manual clearing available via Management UI
@@ -247,6 +261,7 @@ kill -9 $(lsof -ti:5065)
 Verify that your API keys are correctly set in the `.env` file in the project root.
 - `ELEVENLABS_API_KEY`
 - `AZURE_API_KEY`
+- `OPENROUTER_API_KEY`
 
 ### CORS errors in browser
 The service enables CORS for all origins. If you still see errors:
@@ -282,9 +297,8 @@ curl "http://localhost:5065/tts?text=test" -I
 - Free tier: 0.5 million characters/month
 - Paid tier: ~$1.00 per 1 million characters
 
-**ElevenLabs Pricing** (as of 2024):
-- Free tier: 10,000 characters/month
-- Paid tier: $5-$99/month
+**ElevenLabs Pricing:**
+- Check your ElevenLabs plan for current character limits and pricing
 
 **Cache Benefits:**
 - Each unique conjugation generates TTS once
@@ -295,7 +309,7 @@ curl "http://localhost:5065/tts?text=test" -I
 
 **Estimated Costs:**
 - Development: Free tier sufficient for both
-- Production: Very low with Azure (cents per month) or ~$5-10/month for active users with ElevenLabs
+- Production: Very low with caching for typical language-learning drills
 
 ## Technical Details
 
@@ -316,6 +330,14 @@ curl "http://localhost:5065/tts?text=test" -I
 **Azure AI Speech:**
 - Model: `ja-JP-NanamiNeural` (default, preferred)
 - Features: Support for contextual silence prepending to improve pronunciation naturalness.
+
+**OpenRouter Speech:**
+- Endpoint: `https://openrouter.ai/api/v1/audio/speech`
+- Default model: `google/gemini-3.1-flash-tts-preview`
+- Default voice: `Aoede`
+- Default format: `pcm`, converted server-side to WAV so existing browser clients can play it.
+- Previous text is sent as a prompt prefix because OpenRouter Speech does not expose a separate `previous_text` field.
+- Optional provider routing options can be supplied as JSON with `OPENROUTER_TTS_PROVIDER`.
 
 ## License
 
