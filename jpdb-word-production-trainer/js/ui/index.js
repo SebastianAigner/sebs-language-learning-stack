@@ -74,9 +74,11 @@ export function updateConfigInputs() {
   updateServiceUrlField(elements, state.config.serviceUrl);
   if (elements.ttsPrefixText) {
     elements.ttsPrefixText.value = state.config.ttsPrefixText || '';
+    elements.ttsPrefixText.placeholder = state.config.ttsDefaultPrefixText || CONFIG.DEFAULT_TTS_PREFIX_TEXT;
   }
   if (elements.ttsSuffixText) {
     elements.ttsSuffixText.value = state.config.ttsSuffixText || '';
+    elements.ttsSuffixText.placeholder = state.config.ttsDefaultSuffixText || CONFIG.DEFAULT_TTS_SUFFIX_TEXT;
   }
   if (elements.blacklist) {
     elements.blacklist.value = state.config.blacklist || '';

@@ -17,6 +17,8 @@ import { CONFIG } from './config.js';
  * @property {string} config.serviceUrl - URL of the vocabulary service
  * @property {string} config.ttsPrefixText - Optional TTS prefix text sent as previous_text
  * @property {string} config.ttsSuffixText - Optional TTS suffix text sent as suffix_text
+ * @property {string} config.ttsDefaultPrefixText - Server-provided default previous_text
+ * @property {string} config.ttsDefaultSuffixText - Server-provided default suffix_text
  * @property {Object} session - Current review session data
  * @property {Array} session.queue - Queue of vocabulary items to review
  * @property {number} session.currentIndex - Current position in the queue
@@ -40,6 +42,8 @@ export const state = {
     ttsEnabled: CONFIG.TTS_ENABLED,
     ttsPrefixText: '',
     ttsSuffixText: '',
+    ttsDefaultPrefixText: CONFIG.DEFAULT_TTS_PREFIX_TEXT,
+    ttsDefaultSuffixText: CONFIG.DEFAULT_TTS_SUFFIX_TEXT,
     blacklist: ''
   },
 
@@ -136,6 +140,8 @@ export function resetState() {
     state.config.ttsEnabled = CONFIG.TTS_ENABLED;
     state.config.ttsPrefixText = '';
     state.config.ttsSuffixText = '';
+    state.config.ttsDefaultPrefixText = CONFIG.DEFAULT_TTS_PREFIX_TEXT;
+    state.config.ttsDefaultSuffixText = CONFIG.DEFAULT_TTS_SUFFIX_TEXT;
     state.config.blacklist = '';
     state.session = {
       queue: [],

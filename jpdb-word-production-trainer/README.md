@@ -55,6 +55,8 @@ You can configure the vocabulary service URL in two ways:
 
 The settings panel includes optional **TTS prefix text** and **TTS suffix text** fields. When they are non-blank, the trainer sends them as `previous_text` and `suffix_text` to the TTS service for each spoken answer. Leave them blank to use the TTS server defaults.
 
+The placeholder values are loaded from the TTS server's public `/api/config` endpoint on startup so the UI reflects the defaults resolved from the server's environment.
+
 ### Scheduling Parameters
 
 To adjust the rescheduling intervals, edit `js/config.js`:

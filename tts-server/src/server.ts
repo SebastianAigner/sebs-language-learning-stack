@@ -2,7 +2,9 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
 import { createHash } from 'crypto';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
+import { execFile } from 'child_process';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, unlinkSync, statSync } from 'fs';
+import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
@@ -14,6 +16,8 @@ const repositoryRoot = join(__dirname, '../..');
 const publicDir = join(__dirname, '../public');
 const defaultPreviousText = '[japanese text, clearly enunciated]';
 const defaultSuffixText = '。 [brief pause]';
+const openRouterEmptyAudioMaxRetries = 5;
+const openRouterEmptyAudioRetryDelayMs = 1000;
 
 loadEnvironment();
 
@@ -39,6 +43,15 @@ interface Config {
   openRouterSpeed?: number;
   openRouterProvider?: Record<string, unknown>;
   openRouterPcmSampleRate: number;
+  // Audio post-processing settings
+  ffmpegPath: string;
+  trimAfterSilence: boolean;
+  trimSilenceThresholdDb: number;
+  trimSilenceMinDurationMs: number;
+  trimLeadingSilence: boolean;
+  trimLeadingKeepMs: number;
+  trimKeepSilenceMs: number;
+  trimMinimumAudioMs: number;
   // Common settings
   cacheDir: string;
   maxTextLength: number;
@@ -64,6 +77,15 @@ const CONFIG: Config = {
   openRouterSpeed: readPositiveNumber('OPENROUTER_TTS_SPEED', 1),
   openRouterProvider: readOpenRouterProviderOptions(),
   openRouterPcmSampleRate: readPositiveNumber('OPENROUTER_TTS_PCM_SAMPLE_RATE', 24000) ?? 24000,
+  // Audio post-processing settings
+  ffmpegPath: process.env.FFMPEG_PATH?.trim() !== '' ? process.env.FFMPEG_PATH?.trim() ?? 'ffmpeg' : 'ffmpeg',
+  trimAfterSilence: readBoolean('TTS_TRIM_AFTER_SILENCE', true),
+  trimSilenceThresholdDb: readNumber('TTS_TRIM_SILENCE_THRESHOLD_DB', -45),
+  trimSilenceMinDurationMs: readPositiveNumber('TTS_TRIM_SILENCE_MIN_MS', 750) ?? 750,
+  trimLeadingSilence: readBoolean('TTS_TRIM_LEADING_SILENCE', true),
+  trimLeadingKeepMs: readNonNegativeNumber('TTS_TRIM_LEADING_KEEP_MS', 50),
+  trimKeepSilenceMs: readNonNegativeNumber('TTS_TRIM_KEEP_SILENCE_MS', 150),
+  trimMinimumAudioMs: readNonNegativeNumber('TTS_TRIM_MIN_AUDIO_MS', 250),
   // Common settings
   cacheDir: join(__dirname, '../cache'),
   maxTextLength: 500,
@@ -84,6 +106,7 @@ interface CacheMetadata {
   contentType?: string;
   extension?: CachedAudioExtension;
   openRouterGenerationId?: string;
+  silenceTrim?: SilenceTrimMetadata;
 }
 
 interface CacheFileInfo {
@@ -104,6 +127,13 @@ interface TtsRequestBody {
   text?: string;
   previous_text?: string;
   suffix_text?: string;
+}
+
+interface PublicConfigResponse {
+  provider: TtsProvider;
+  defaultPrefixText: string;
+  defaultPreviousText: string;
+  defaultSuffixText: string;
 }
 
 interface CacheStats {
@@ -149,6 +179,21 @@ interface GeneratedAudio {
   contentType: string;
   extension: CachedAudioExtension;
   openRouterGenerationId?: string;
+  silenceTrim?: SilenceTrimMetadata;
+}
+
+interface SilenceTrimMetadata {
+  originalSize: number;
+  trimmedSize: number;
+  leadingTrimMs?: number;
+  silenceStartMs?: number;
+  trimmedAtMs?: number;
+}
+
+interface SilenceInterval {
+  startSeconds: number;
+  endSeconds?: number;
+  durationSeconds?: number;
 }
 
 interface CachedAudio {
@@ -210,6 +255,57 @@ function readPositiveNumber(name: string, defaultValue?: number): number | undef
   }
 
   console.warn(`Ignoring invalid ${name}; expected a positive number`);
+  return defaultValue;
+}
+
+function readNonNegativeNumber(name: string, defaultValue: number): number {
+  const rawValue = process.env[name]?.trim();
+
+  if (rawValue === undefined || rawValue === '') {
+    return defaultValue;
+  }
+
+  const value = Number(rawValue);
+  if (Number.isFinite(value) && value >= 0) {
+    return value;
+  }
+
+  console.warn(`Ignoring invalid ${name}; expected a non-negative number`);
+  return defaultValue;
+}
+
+function readNumber(name: string, defaultValue: number): number {
+  const rawValue = process.env[name]?.trim();
+
+  if (rawValue === undefined || rawValue === '') {
+    return defaultValue;
+  }
+
+  const value = Number(rawValue);
+  if (Number.isFinite(value)) {
+    return value;
+  }
+
+  console.warn(`Ignoring invalid ${name}; expected a number`);
+  return defaultValue;
+}
+
+function readBoolean(name: string, defaultValue: boolean): boolean {
+  const rawValue = process.env[name]?.trim().toLowerCase();
+
+  if (rawValue === undefined || rawValue === '') {
+    return defaultValue;
+  }
+
+  if (rawValue === 'true' || rawValue === '1' || rawValue === 'yes' || rawValue === 'on') {
+    return true;
+  }
+
+  if (rawValue === 'false' || rawValue === '0' || rawValue === 'no' || rawValue === 'off') {
+    return false;
+  }
+
+  console.warn(`Ignoring invalid ${name}; expected true or false`);
   return defaultValue;
 }
 
@@ -348,13 +444,15 @@ function getProviderCacheSettings(): Record<string, unknown> {
       return {
         provider: CONFIG.provider,
         voiceId: CONFIG.voiceId,
-        model: CONFIG.model
+        model: CONFIG.model,
+        audioProcessing: getAudioProcessingCacheSettings()
       };
     case 'azure':
       return {
         provider: CONFIG.provider,
         region: CONFIG.azureRegion,
-        voice: CONFIG.azureVoice
+        voice: CONFIG.azureVoice,
+        audioProcessing: getAudioProcessingCacheSettings()
       };
     case 'openrouter':
       return {
@@ -363,9 +461,29 @@ function getProviderCacheSettings(): Record<string, unknown> {
         voice: CONFIG.openRouterVoice,
         responseFormat: CONFIG.openRouterResponseFormat,
         speed: CONFIG.openRouterSpeed ?? null,
-        providerOptions: normalizeForCache(CONFIG.openRouterProvider)
+        providerOptions: normalizeForCache(CONFIG.openRouterProvider),
+        audioProcessing: getAudioProcessingCacheSettings()
       };
   }
+}
+
+function getAudioProcessingCacheSettings(): Record<string, unknown> {
+  if (!CONFIG.trimAfterSilence && !CONFIG.trimLeadingSilence) {
+    return {
+      trimAfterSilence: false,
+      trimLeadingSilence: false
+    };
+  }
+
+  return {
+    trimAfterSilence: CONFIG.trimAfterSilence,
+    trimLeadingSilence: CONFIG.trimLeadingSilence,
+    silenceThresholdDb: CONFIG.trimSilenceThresholdDb,
+    silenceMinDurationMs: CONFIG.trimSilenceMinDurationMs,
+    leadingKeepSilenceMs: CONFIG.trimLeadingKeepMs,
+    keepSilenceMs: CONFIG.trimKeepSilenceMs,
+    minimumAudioMs: CONFIG.trimMinimumAudioMs
+  };
 }
 
 function normalizeForCache(value: unknown): unknown {
@@ -413,6 +531,9 @@ function saveCacheMetadata(
   }
   if (audio.openRouterGenerationId !== undefined && audio.openRouterGenerationId !== '') {
     metadata.openRouterGenerationId = audio.openRouterGenerationId;
+  }
+  if (audio.silenceTrim !== undefined) {
+    metadata.silenceTrim = audio.silenceTrim;
   }
 
   const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
@@ -704,68 +825,121 @@ async function callOpenRouterSpeechAPI(text: string, previousText?: string, suff
 
   console.log(`Calling OpenRouter Speech API for text: "${text}"${prefixLog}${suffixLog} (model: ${CONFIG.openRouterModel}, voice: ${CONFIG.openRouterVoice}, format: ${CONFIG.openRouterResponseFormat})`);
 
-  const requestBody: OpenRouterSpeechRequest = {
-    input,
+  const requestBodyBase: Omit<OpenRouterSpeechRequest, 'input'> = {
     model: CONFIG.openRouterModel,
     voice: CONFIG.openRouterVoice,
     response_format: CONFIG.openRouterResponseFormat
   };
 
   if (CONFIG.openRouterSpeed !== undefined) {
-    requestBody.speed = CONFIG.openRouterSpeed;
+    requestBodyBase.speed = CONFIG.openRouterSpeed;
   }
 
   if (CONFIG.openRouterProvider !== undefined) {
-    requestBody.provider = CONFIG.openRouterProvider;
+    requestBodyBase.provider = CONFIG.openRouterProvider;
   }
 
-  const response = await fetch(`${CONFIG.openRouterBaseUrl}/audio/speech`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': `http://localhost:${CONFIG.port}`,
-      'X-Title': 'Sebs Language Learning TTS Server'
-    },
-    body: JSON.stringify(requestBody)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenRouter Speech API error (${response.status}): ${extractErrorMessage(errorText)}`);
+  const generatedAudio = await callOpenRouterSpeechAPIWithEmptyAudioRetries(text, input, requestBodyBase, 'original prompt');
+  if (generatedAudio !== null) {
+    return generatedAudio;
   }
 
-  const contentType = normalizeOpenRouterContentType(
-    response.headers.get('content-type') ?? contentTypeForOpenRouterFormat(CONFIG.openRouterResponseFormat),
-    CONFIG.openRouterResponseFormat
+  const fallbackInput = `${input}.`;
+  console.warn(`OpenRouter Speech API exhausted empty-audio retries for "${text}"; retrying with period-suffixed prompt`);
+  const fallbackAudio = await callOpenRouterSpeechAPIWithEmptyAudioRetries(
+    text,
+    fallbackInput,
+    requestBodyBase,
+    'period-suffixed prompt'
   );
-  const openRouterGenerationId = response.headers.get('x-generation-id') ?? undefined;
-  const audioBuffer = Buffer.from(await response.arrayBuffer());
-  assertAudioBufferHasContent(audioBuffer, 'OpenRouter Speech API');
 
-  if (shouldWrapPcmAsWav(contentType, CONFIG.openRouterResponseFormat)) {
-    const sampleRate = readNumberContentTypeParameter(contentType, 'rate') ?? CONFIG.openRouterPcmSampleRate;
-    const channels = readNumberContentTypeParameter(contentType, 'channels') ?? 1;
+  if (fallbackAudio !== null) {
+    return fallbackAudio;
+  }
+
+  throw new Error('OpenRouter Speech API returned empty audio after original and period-suffixed prompts.');
+}
+
+async function callOpenRouterSpeechAPIWithEmptyAudioRetries(
+  text: string,
+  input: string,
+  requestBodyBase: Omit<OpenRouterSpeechRequest, 'input'>,
+  promptLabel: string
+): Promise<GeneratedAudio | null> {
+  const maxAttempts = openRouterEmptyAudioMaxRetries + 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const requestBody: OpenRouterSpeechRequest = {
+      input,
+      ...requestBodyBase
+    };
+
+    const response = await fetch(`${CONFIG.openRouterBaseUrl}/audio/speech`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': `http://localhost:${CONFIG.port}`,
+        'X-Title': 'Sebs Language Learning TTS Server'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenRouter Speech API error (${response.status}): ${extractErrorMessage(errorText)}`);
+    }
+
+    const contentType = normalizeOpenRouterContentType(
+      response.headers.get('content-type') ?? contentTypeForOpenRouterFormat(CONFIG.openRouterResponseFormat),
+      CONFIG.openRouterResponseFormat
+    );
+    const openRouterGenerationId = response.headers.get('x-generation-id') ?? undefined;
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+    if (audioBuffer.length === 0) {
+      if (attempt < maxAttempts) {
+        console.warn(`OpenRouter Speech API returned empty audio for "${text}" (${promptLabel}) on attempt ${attempt}/${maxAttempts}; retrying in ${openRouterEmptyAudioRetryDelayMs / 1000}s`);
+        await sleep(openRouterEmptyAudioRetryDelayMs);
+        continue;
+      }
+
+      console.warn(`OpenRouter Speech API returned empty audio for "${text}" (${promptLabel}) after ${maxAttempts} attempts.`);
+      return null;
+    }
+
+    if (shouldWrapPcmAsWav(contentType, CONFIG.openRouterResponseFormat)) {
+      const sampleRate = readNumberContentTypeParameter(contentType, 'rate') ?? CONFIG.openRouterPcmSampleRate;
+      const channels = readNumberContentTypeParameter(contentType, 'channels') ?? 1;
+
+      return {
+        buffer: pcmToWavBuffer(audioBuffer, sampleRate, channels),
+        contentType: 'audio/wav',
+        extension: 'wav',
+        openRouterGenerationId
+      };
+    }
 
     return {
-      buffer: pcmToWavBuffer(audioBuffer, sampleRate, channels),
-      contentType: 'audio/wav',
-      extension: 'wav',
+      buffer: audioBuffer,
+      contentType,
+      extension: audioExtensionForOpenRouterResponse(contentType, CONFIG.openRouterResponseFormat),
       openRouterGenerationId
     };
   }
 
-  return {
-    buffer: audioBuffer,
-    contentType,
-    extension: audioExtensionForOpenRouterResponse(contentType, CONFIG.openRouterResponseFormat),
-    openRouterGenerationId
-  };
+  throw new Error('OpenRouter Speech API retry loop exited unexpectedly.');
 }
 
 function buildOpenRouterSpeechInput(text: string, previousText?: string, suffixText?: string): string {
   const promptedText = suffixText !== undefined && suffixText !== '' ? `${text}${suffixText}` : text;
   return previousText !== undefined && previousText !== '' ? `${previousText}\n${promptedText}` : promptedText;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function contentTypeForOpenRouterFormat(format: OpenRouterSpeechFormat): string {
@@ -814,6 +988,181 @@ function assertGeneratedAudioHasContent(audio: GeneratedAudio): void {
   if (audio.extension === 'wav' && audio.buffer.length <= 44) {
     throw new Error('TTS provider returned an empty WAV file.');
   }
+}
+
+async function trimAudioAfterFirstSilence(audio: GeneratedAudio, text: string): Promise<GeneratedAudio> {
+  if (!CONFIG.trimAfterSilence && !CONFIG.trimLeadingSilence) {
+    return audio;
+  }
+
+  const tempDir = mkdtempSync(join(tmpdir(), 'tts-silence-trim-'));
+  const inputPath = join(tempDir, `input.${audio.extension}`);
+  const outputPath = join(tempDir, `output.${audio.extension}`);
+
+  try {
+    writeFileSync(inputPath, audio.buffer);
+
+    const { stderr } = await runFfmpeg([
+      '-hide_banner',
+      '-nostdin',
+      '-i',
+      inputPath,
+      '-af',
+      `silencedetect=noise=${CONFIG.trimSilenceThresholdDb}dB:d=${formatSeconds(CONFIG.trimSilenceMinDurationMs / 1000)}`,
+      '-f',
+      'null',
+      '-'
+    ]);
+
+    const silenceIntervals = parseSilenceIntervals(stderr);
+    const startTrimSeconds = CONFIG.trimLeadingSilence
+      ? findLeadingSilenceTrimStartSeconds(silenceIntervals, CONFIG.trimLeadingKeepMs / 1000)
+      : 0;
+    const silenceStartSeconds = CONFIG.trimAfterSilence
+      ? findFirstTrailingSilenceStartSeconds(silenceIntervals, CONFIG.trimMinimumAudioMs / 1000)
+      : undefined;
+    const endTrimSeconds = silenceStartSeconds !== undefined
+      ? silenceStartSeconds + CONFIG.trimKeepSilenceMs / 1000
+      : undefined;
+
+    if (startTrimSeconds === 0 && endTrimSeconds === undefined) {
+      return audio;
+    }
+
+    const trimDurationSeconds = endTrimSeconds !== undefined ? endTrimSeconds - startTrimSeconds : undefined;
+    if (trimDurationSeconds !== undefined && trimDurationSeconds <= 0) {
+      console.warn(`FFmpeg silence trim for "${text}" would remove all audio; keeping original audio`);
+      return audio;
+    }
+
+    const trimArgs = [
+      '-y',
+      '-hide_banner',
+      '-nostdin',
+      '-loglevel',
+      'error'
+    ];
+    if (startTrimSeconds > 0) {
+      trimArgs.push('-ss', formatSeconds(startTrimSeconds));
+    }
+    trimArgs.push('-i', inputPath);
+    if (trimDurationSeconds !== undefined) {
+      trimArgs.push('-t', formatSeconds(trimDurationSeconds));
+    }
+    trimArgs.push('-c:a', 'copy', outputPath);
+
+    await runFfmpeg(trimArgs);
+
+    const trimmedBuffer = readFileSync(outputPath);
+    assertAudioBufferHasContent(trimmedBuffer, 'FFmpeg silence trim');
+
+    if (trimmedBuffer.length >= audio.buffer.length) {
+      console.warn(`FFmpeg silence trim for "${text}" did not reduce audio size; keeping original audio`);
+      return audio;
+    }
+
+    const leadingTrimMs = startTrimSeconds > 0 ? Math.round(startTrimSeconds * 1000) : undefined;
+    const silenceStartMs = silenceStartSeconds !== undefined ? Math.round(silenceStartSeconds * 1000) : undefined;
+    const trimmedAtMs = endTrimSeconds !== undefined ? Math.round(endTrimSeconds * 1000) : undefined;
+    const trimDetails = [
+      leadingTrimMs !== undefined ? `leading ${leadingTrimMs}ms` : undefined,
+      silenceStartMs !== undefined ? `after-silence at ${silenceStartMs}ms` : undefined
+    ].filter((detail): detail is string => detail !== undefined).join(', ');
+    console.log(`Trimmed TTS audio silence for "${text}": ${audio.buffer.length} bytes -> ${trimmedBuffer.length} bytes (${trimDetails})`);
+
+    return {
+      ...audio,
+      buffer: trimmedBuffer,
+      silenceTrim: {
+        originalSize: audio.buffer.length,
+        trimmedSize: trimmedBuffer.length,
+        ...(leadingTrimMs !== undefined ? { leadingTrimMs } : {}),
+        ...(silenceStartMs !== undefined ? { silenceStartMs } : {}),
+        ...(trimmedAtMs !== undefined ? { trimmedAtMs } : {})
+      }
+    };
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function parseSilenceIntervals(ffmpegOutput: string): SilenceInterval[] {
+  const silenceIntervals: SilenceInterval[] = [];
+  let activeInterval: SilenceInterval | undefined;
+
+  for (const line of ffmpegOutput.split(/\r?\n/)) {
+    const startMatch = line.match(/silence_start:\s*([0-9]+(?:\.[0-9]+)?)/);
+    if (startMatch !== null) {
+      activeInterval = { startSeconds: Number(startMatch[1]) };
+      silenceIntervals.push(activeInterval);
+      continue;
+    }
+
+    const endMatch = line.match(/silence_end:\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*silence_duration:\s*([0-9]+(?:\.[0-9]+)?))?/);
+    if (endMatch !== null) {
+      const endSeconds = Number(endMatch[1]);
+      const durationMatch = line.match(/silence_duration:\s*([0-9]+(?:\.[0-9]+)?)/);
+      const durationSeconds = durationMatch !== null ? Number(durationMatch[1]) : undefined;
+      if (activeInterval === undefined) {
+        activeInterval = {
+          startSeconds: durationSeconds !== undefined ? Math.max(0, endSeconds - durationSeconds) : 0
+        };
+        silenceIntervals.push(activeInterval);
+      }
+
+      activeInterval.endSeconds = endSeconds;
+      if (durationSeconds !== undefined) {
+        activeInterval.durationSeconds = durationSeconds;
+      }
+      activeInterval = undefined;
+    }
+  }
+
+  return silenceIntervals.filter((interval) => Number.isFinite(interval.startSeconds));
+}
+
+function findLeadingSilenceTrimStartSeconds(silenceIntervals: SilenceInterval[], keepSeconds: number): number {
+  const leadingSilenceStartToleranceSeconds = 0.05;
+  const leadingSilence = silenceIntervals.find(
+    (interval) => interval.startSeconds <= leadingSilenceStartToleranceSeconds && interval.endSeconds !== undefined
+  );
+
+  if (leadingSilence?.endSeconds === undefined) {
+    return 0;
+  }
+
+  return Math.max(0, leadingSilence.endSeconds - keepSeconds);
+}
+
+function findFirstTrailingSilenceStartSeconds(
+  silenceIntervals: SilenceInterval[],
+  minimumStartSeconds: number
+): number | undefined {
+  const trailingSilence = silenceIntervals.find(
+    (interval) => Number.isFinite(interval.startSeconds) && interval.startSeconds >= minimumStartSeconds
+  );
+
+  return trailingSilence?.startSeconds;
+}
+
+function formatSeconds(seconds: number): string {
+  return seconds.toFixed(3);
+}
+
+function runFfmpeg(args: string[]): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(CONFIG.ffmpegPath, args, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+      const stdoutText = String(stdout);
+      const stderrText = String(stderr);
+
+      if (error !== null) {
+        reject(new Error(`ffmpeg failed: ${stderrText !== '' ? stderrText : error.message}`));
+        return;
+      }
+
+      resolve({ stdout: stdoutText, stderr: stderrText });
+    });
+  });
 }
 
 function pcmToWavBuffer(pcmBuffer: Buffer, sampleRate: number, channels: number): Buffer {
@@ -902,6 +1251,7 @@ async function generateAndCacheTTS(
     audio = await callOpenRouterSpeechAPI(text, previousText, suffixText);
   }
 
+  audio = await trimAudioAfterFirstSilence(audio, text);
   assertGeneratedAudioHasContent(audio);
 
   // Save to cache
@@ -937,6 +1287,18 @@ app.get('/health', (_req: Request, res: Response) => {
     status: 'ok',
     provider: CONFIG.provider,
     timestamp: new Date().toISOString()
+  });
+});
+
+/**
+ * GET /api/config - Public, non-secret TTS configuration
+ */
+app.get('/api/config', (_req: Request, res: Response<PublicConfigResponse>) => {
+  res.json({
+    provider: CONFIG.provider,
+    defaultPrefixText: CONFIG.defaultPreviousText,
+    defaultPreviousText: CONFIG.defaultPreviousText,
+    defaultSuffixText: CONFIG.defaultSuffixText
   });
 });
 
@@ -1276,6 +1638,7 @@ app.listen(CONFIG.port, () => {
   }
 
   console.log(`    Cache:    ${CONFIG.cacheDir}`);
+  console.log(`    Trim:     ${CONFIG.trimLeadingSilence ? 'leading, ' : ''}${CONFIG.trimAfterSilence ? `after ${CONFIG.trimSilenceMinDurationMs}ms below ${CONFIG.trimSilenceThresholdDb}dB` : 'after disabled'}`);
   console.log('');
   console.log(`    Management UI: http://localhost:${CONFIG.port}`);
   console.log(`    TTS Endpoint:  http://localhost:${CONFIG.port}/tts?text=...`);

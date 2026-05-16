@@ -2,8 +2,9 @@
 
 import { state, loadState, resetState, saveState, isQueueEmpty } from './state.js';
 import { loadMistakes, clearMistakes } from './mistakes.js';
-import { fetchReviewedToday, normalizeVocabItem } from './api.js';
+import { fetchReviewedToday, fetchTTSDefaults, normalizeVocabItem } from './api.js';
 import { initializeQueue, spreadConsecutiveDuplicates } from './scheduler.js';
+import { CONFIG } from './config.js';
 import {
   initializeUI,
   setupEventListeners,
@@ -23,7 +24,9 @@ async function init() {
 
   // Try to load persisted state
   const hasPersistedState = loadState();
-  
+
+  await syncTTSDefaults();
+
   // Update inputs from loaded state
   updateConfigInputs();
   
@@ -67,6 +70,20 @@ async function init() {
   });
 
   console.log('Application initialized');
+}
+
+// Fetch live TTS defaults for settings placeholders
+async function syncTTSDefaults() {
+  try {
+    const defaults = await fetchTTSDefaults(CONFIG.TTS_BASE_URL);
+    state.config.ttsDefaultPrefixText = defaults.defaultPreviousText;
+    state.config.ttsDefaultSuffixText = defaults.defaultSuffixText;
+    console.log('Loaded TTS defaults from server');
+  } catch (error) {
+    state.config.ttsDefaultPrefixText = CONFIG.DEFAULT_TTS_PREFIX_TEXT;
+    state.config.ttsDefaultSuffixText = CONFIG.DEFAULT_TTS_SUFFIX_TEXT;
+    console.warn('Could not load TTS defaults from server; using built-in fallbacks:', error);
+  }
 }
 
 // Fetch vocabulary and initialize queue

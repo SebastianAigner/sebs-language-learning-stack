@@ -30,6 +30,7 @@ A Japanese Text-to-Speech microservice supporting ElevenLabs, Azure Speech, and 
 
 ## API Endpoints
 - `GET /tts?text=...&previous_text=...&suffix_text=...` - Generate or serve cached TTS audio
+- `GET /api/config` - Return public, non-secret TTS defaults for clients
 - `GET /api/cache` - Get cache statistics
 - `POST /api/regenerate` - Delete cached audio and regenerate
 - `POST /api/test` - Test TTS generation
@@ -52,4 +53,12 @@ A Japanese Text-to-Speech microservice supporting ElevenLabs, Azure Speech, and 
 - `OPENROUTER_TTS_MODEL` - OpenRouter speech model
 - `OPENROUTER_TTS_VOICE` - OpenRouter speech voice
 - `OPENROUTER_TTS_RESPONSE_FORMAT` - 'pcm' or 'mp3' (pcm is converted to WAV)
+- `TTS_TRIM_AFTER_SILENCE` - Trim generated audio after the first detected long silence before caching
+- `TTS_TRIM_SILENCE_THRESHOLD_DB` - ffmpeg `silencedetect` noise threshold (default: -45)
+- `TTS_TRIM_SILENCE_MIN_MS` - Minimum silence duration to trigger trimming (default: 750)
+- `TTS_TRIM_LEADING_SILENCE` - Trim real detected silence at the start of generated audio (default: true)
+- `TTS_TRIM_LEADING_KEEP_MS` - Leading silence pad to retain before the word starts (default: 50)
+- `TTS_TRIM_KEEP_SILENCE_MS` - Amount of detected silence to retain after the phrase (default: 150)
+- `TTS_TRIM_MIN_AUDIO_MS` - Ignore silence starts before this much audio has elapsed (default: 250)
+- `FFMPEG_PATH` - ffmpeg binary path (default: ffmpeg)
 - `TTS_SERVER_PORT` - Server port (default: 5065)

@@ -20,6 +20,8 @@ export const CONFIG = {
   // TTS configuration
   TTS_BASE_URL: 'http://localhost:5065',
   TTS_ENABLED: true,
+  DEFAULT_TTS_PREFIX_TEXT: '[japanese text, clearly enunciated]',
+  DEFAULT_TTS_SUFFIX_TEXT: '。 [brief pause]',
 
   // Storage
   STORAGE_KEY: 'jpdb-trainer-state',

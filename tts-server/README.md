@@ -87,6 +87,19 @@ Get cache statistics and list of all cached files.
 }
 ```
 
+### GET /api/config
+Get public, non-secret TTS runtime config for clients.
+
+**Response:**
+```json
+{
+  "provider": "openrouter",
+  "defaultPrefixText": "[japanese text, clearly enunciated]",
+  "defaultPreviousText": "[japanese text, clearly enunciated]",
+  "defaultSuffixText": "。 [brief pause]"
+}
+```
+
 ### POST /api/cache/clear
 Clear all cached files (requires confirmation in UI).
 
@@ -146,6 +159,14 @@ OPENROUTER_TTS_MODEL=google/gemini-3.1-flash-tts-preview
 OPENROUTER_TTS_VOICE=Aoede
 OPENROUTER_TTS_RESPONSE_FORMAT=pcm     # pcm is converted to WAV; mp3 is served as MP3
 OPENROUTER_TTS_SPEED=1
+TTS_TRIM_AFTER_SILENCE=true            # trim after first detected long silence before caching
+TTS_TRIM_SILENCE_THRESHOLD_DB=-45
+TTS_TRIM_SILENCE_MIN_MS=750
+TTS_TRIM_LEADING_SILENCE=true          # trim real detected silence at the beginning
+TTS_TRIM_LEADING_KEEP_MS=50            # retain a small leading pad to avoid clipping word onset
+TTS_TRIM_KEEP_SILENCE_MS=150
+TTS_TRIM_MIN_AUDIO_MS=250
+FFMPEG_PATH=ffmpeg
 ```
 
 Default configuration (in `src/server.ts`):
@@ -340,7 +361,15 @@ curl "http://localhost:5065/tts?text=test" -I
 - Default voice: `Aoede`
 - Default format: `pcm`, converted server-side to WAV so existing browser clients can play it.
 - Previous and suffix text are sent as prompt prefix/suffix text because OpenRouter Speech does not expose separate `previous_text` or `suffix_text` fields.
+- If OpenRouter keeps returning empty audio for the original prompt, the server retries with a hidden `.` appended to the prompt so upstream treats it as a fresh request.
 - Optional provider routing options can be supplied as JSON with `OPENROUTER_TTS_PROVIDER`.
+
+**Silence trimming:**
+- By default, generated audio is passed through `ffmpeg` before cache writes.
+- `silencedetect` finds the first silence at or after `TTS_TRIM_MIN_AUDIO_MS` whose level is below `TTS_TRIM_SILENCE_THRESHOLD_DB` for at least `TTS_TRIM_SILENCE_MIN_MS`.
+- If such a silence is found, the cached audio is trimmed to the silence start plus `TTS_TRIM_KEEP_SILENCE_MS`.
+- Real silence at the beginning is also trimmed when `TTS_TRIM_LEADING_SILENCE=true`, while retaining `TTS_TRIM_LEADING_KEEP_MS` as a small safety pad before the word.
+- Disable end trimming with `TTS_TRIM_AFTER_SILENCE=false`; disable leading trim with `TTS_TRIM_LEADING_SILENCE=false`.
 
 ## License
 

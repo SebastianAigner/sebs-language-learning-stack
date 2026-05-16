@@ -73,6 +73,40 @@ export async function fetchReviewedToday(baseUrl) {
   }
 }
 
+// Fetch public TTS defaults from the TTS service
+export async function fetchTTSDefaults(ttsBaseUrl) {
+  const endpoint = `${ttsBaseUrl.replace(/\/$/, '')}/api/config`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+  try {
+    const response = await fetch(endpoint, {
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const defaultPrefixText = typeof data.defaultPrefixText === 'string'
+      ? data.defaultPrefixText
+      : data.defaultPreviousText;
+
+    return {
+      defaultPreviousText: typeof defaultPrefixText === 'string'
+        ? defaultPrefixText
+        : CONFIG.DEFAULT_TTS_PREFIX_TEXT,
+      defaultSuffixText: typeof data.defaultSuffixText === 'string'
+        ? data.defaultSuffixText
+        : CONFIG.DEFAULT_TTS_SUFFIX_TEXT
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // Deduplicate vocabulary items by ID or Japanese text
 export function deduplicateVocabulary(items) {
   const seen = new Map();

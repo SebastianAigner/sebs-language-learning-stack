@@ -15,6 +15,7 @@ import { PolitenessImage } from './ui/PolitenessImage';
 
 // Timing constants
 const AUTO_ADVANCE_DELAY_MS = 4000;
+const TTS_SUFFIX_TEXT_OVERRIDE = '';
 
 interface ResultViewProps {
   gradingResult: GradingResult;
@@ -140,7 +141,7 @@ export function ResultView({
 
     // Play TTS audio for the correct answer
     if (textToSpeak !== '') {
-      playTTS(textToSpeak).catch(error => {
+      playTTS(textToSpeak, undefined, TTS_SUFFIX_TEXT_OVERRIDE).catch(error => {
         console.warn('TTS playback failed:', error);
       });
     }
@@ -166,7 +167,7 @@ export function ResultView({
     const textToSpeak = gradingResult.correctAnswer;
 
     if (textToSpeak !== '') {
-      void replayTTS(textToSpeak);
+      void replayTTS(textToSpeak, undefined, TTS_SUFFIX_TEXT_OVERRIDE);
     }
   };
 
@@ -174,7 +175,7 @@ export function ResultView({
     const textToSpeak = gradingResult.correctAnswer;
 
     if (textToSpeak !== '') {
-      void regenerateTTS(textToSpeak);
+      void regenerateTTS(textToSpeak, undefined, TTS_SUFFIX_TEXT_OVERRIDE);
     }
   };
 
