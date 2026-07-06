@@ -92,6 +92,8 @@ function App() {
   const currentCardDataRef = useRef<CardData | null>(null);
   const advanceRef = useRef<() => void>(() => {});
   const englishTTSEnabledRef = useRef(false);
+  const preloadedJpAudioRef = useRef<HTMLAudioElement | null>(null);
+  const preloadedEnAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     currentCardDataRef.current = currentCard;
@@ -126,6 +128,25 @@ function App() {
   const selectableCards = allCards;
   const currentCard = queue[currentIndex] ?? null;
 
+  useEffect(() => {
+    if (!currentCard) return;
+    const jpUrl = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(currentCard.word)}`;
+    const jpAudio = new Audio(jpUrl);
+    jpAudio.volume = 0.7;
+    preloadedJpAudioRef.current = jpAudio;
+
+    let enAudio: HTMLAudioElement | null = null;
+    if (englishTTSEnabledRef.current) {
+      const enText = getEnglishPreview(currentCard.meanings);
+      if (enText) {
+        const enUrl = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(enText)}&language=en`;
+        enAudio = new Audio(enUrl);
+        enAudio.volume = 0.7;
+      }
+    }
+    preloadedEnAudioRef.current = enAudio;
+  }, [currentCard]);
+
   const advance = useCallback(() => {
     const selected = allCards.filter(c => c.selected);
     if (selected.length === 0) return;
@@ -148,36 +169,30 @@ function App() {
     }
   }, [allCards, queue, currentIndex]);
 
-  const playTTSWait = useCallback((text: string, language?: string): Promise<void> => {
-    let url = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(text)}`;
-    if (language !== undefined && language !== 'ja') {
-      url += `&language=${encodeURIComponent(language)}`;
-    }
-    return new Promise(resolve => {
-      const audio = new Audio(url);
-      audio.volume = 0.7;
-      audio.addEventListener('ended', () => resolve());
-      audio.addEventListener('error', () => resolve());
-      audio.play().catch(() => resolve());
-    });
-  }, []);
+  const playRevealAudio = useCallback(async () => {
+    const jpAudio = preloadedJpAudioRef.current;
+    if (!jpAudio) return;
 
-  const playRevealAudio = useCallback(async (card: CardData) => {
-    await playTTSWait(card.word);
-    if (englishTTSEnabledRef.current) {
-      const enText = getEnglishPreview(card.meanings);
-      if (enText) {
-        await playTTSWait(enText, 'en');
-      }
+    await new Promise<void>(resolve => {
+      jpAudio.addEventListener('ended', () => resolve());
+      jpAudio.addEventListener('error', () => resolve());
+      jpAudio.play().catch(() => resolve());
+    });
+
+    const enAudio = preloadedEnAudioRef.current;
+    if (enAudio) {
+      await new Promise<void>(resolve => {
+        enAudio.addEventListener('ended', () => resolve());
+        enAudio.addEventListener('error', () => resolve());
+        enAudio.play().catch(() => resolve());
+      });
     }
-  }, [playTTSWait]);
+  }, []);
 
   const handleReveal = useCallback(() => {
     setRevealed(true);
-    if (currentCard) {
-      playRevealAudio(currentCard);
-    }
-  }, [currentCard, playRevealAudio]);
+    playRevealAudio();
+  }, [playRevealAudio]);
 
   useEffect(() => {
     if (!autoMode) {
@@ -201,7 +216,7 @@ function App() {
         setRevealed(true);
         await delay(50);
 
-        await playRevealAudio(beforeCard);
+        await playRevealAudio();
         if (!autoModeRef.current) break;
 
         advanceRef.current();

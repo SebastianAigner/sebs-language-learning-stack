@@ -668,10 +668,13 @@ function setDownloadHeader(res: Response, text: string, extension: CachedAudioEx
 }
 
 function resolvePreviousText(value: unknown, language?: string): string | undefined {
-  if (language === 'en') {
-    return typeof value === 'string' && value !== '' ? value : undefined;
+  if (typeof value === 'string' && value !== '') {
+    return value;
   }
-  return resolveDefaultableText(value, CONFIG.defaultPreviousText);
+  if (language === 'en') {
+    return '[english text]';
+  }
+  return CONFIG.defaultPreviousText !== '' ? CONFIG.defaultPreviousText : undefined;
 }
 
 function resolveSuffixText(value: unknown): string | undefined {
@@ -833,9 +836,8 @@ async function callAzureSpeechAPI(text: string, previousText?: string, suffixTex
 /**
  * Call OpenRouter Speech API to generate TTS
  */
-async function callOpenRouterSpeechAPI(text: string, previousText?: string, suffixText?: string, language?: string): Promise<GeneratedAudio> {
-  const effectivePreviousText = language === 'en' ? undefined : previousText;
-  const input = buildOpenRouterSpeechInput(text, effectivePreviousText, suffixText);
+async function callOpenRouterSpeechAPI(text: string, previousText?: string, suffixText?: string): Promise<GeneratedAudio> {
+  const input = buildOpenRouterSpeechInput(text, previousText, suffixText);
   const prefixLog = previousText !== undefined && previousText !== '' ? ` (prefix: "${previousText}")` : '';
   const suffixLog = suffixText !== undefined && suffixText !== '' ? ` (suffix: "${suffixText}")` : '';
 
@@ -1264,7 +1266,7 @@ async function generateAndCacheTTS(
     if (seed !== undefined) {
       console.warn('Note: OpenRouter Speech API does not support seed parameter (ignored)');
     }
-    audio = await callOpenRouterSpeechAPI(text, previousText, suffixText, language);
+    audio = await callOpenRouterSpeechAPI(text, previousText, suffixText);
   }
 
   audio = await trimAudioAfterFirstSilence(audio, text);
