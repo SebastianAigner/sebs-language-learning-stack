@@ -98,6 +98,7 @@ interface CacheMetadata {
   text: string;
   previousText?: string;
   suffixText?: string;
+  language?: string;
   created: string;
   size: number;
   provider?: TtsProvider;
@@ -127,6 +128,7 @@ interface TtsRequestBody {
   text?: string;
   previous_text?: string;
   suffix_text?: string;
+  language?: string;
 }
 
 interface PublicConfigResponse {
@@ -427,11 +429,12 @@ if (!existsSync(CONFIG.cacheDir)) {
 /**
  * Generate SHA-256 hash of text for cache key
  */
-function generateCacheKey(text: string, previousText?: string, suffixText?: string): string {
+function generateCacheKey(text: string, previousText?: string, suffixText?: string, language?: string): string {
   const cacheInput = JSON.stringify({
     text,
     previousText: previousText !== undefined && previousText !== '' ? previousText : null,
     suffixText: suffixText !== undefined && suffixText !== '' ? suffixText : null,
+    language: language ?? 'ja',
     settings: getProviderCacheSettings()
   });
 
@@ -510,7 +513,8 @@ function saveCacheMetadata(
   text: string,
   audio: GeneratedAudio,
   previousText?: string,
-  suffixText?: string
+  suffixText?: string,
+  language?: string
 ): void {
   const providerMetadata = getProviderMetadata();
   const metadata: CacheMetadata = {
@@ -523,6 +527,9 @@ function saveCacheMetadata(
     ...providerMetadata
   };
 
+  if (language !== undefined && language !== '') {
+    metadata.language = language;
+  }
   if (previousText !== undefined && previousText !== '') {
     metadata.previousText = previousText;
   }
@@ -660,7 +667,10 @@ function setDownloadHeader(res: Response, text: string, extension: CachedAudioEx
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
 }
 
-function resolvePreviousText(value: unknown): string | undefined {
+function resolvePreviousText(value: unknown, language?: string): string | undefined {
+  if (language === 'en') {
+    return typeof value === 'string' && value !== '' ? value : undefined;
+  }
   return resolveDefaultableText(value, CONFIG.defaultPreviousText);
 }
 
@@ -676,13 +686,16 @@ function resolveDefaultableText(value: unknown, defaultValue: string): string | 
   return defaultValue !== '' ? defaultValue : undefined;
 }
 
-function buildTtsUrl(text: string, previousText?: string, suffixText?: string): string {
+function buildTtsUrl(text: string, previousText?: string, suffixText?: string, language?: string): string {
   let url = `/tts?text=${encodeURIComponent(text)}`;
   if (previousText !== undefined && previousText !== '') {
     url += `&previous_text=${encodeURIComponent(previousText)}`;
   }
   if (suffixText !== undefined && suffixText !== '') {
     url += `&suffix_text=${encodeURIComponent(suffixText)}`;
+  }
+  if (language !== undefined && language !== '' && language !== 'ja') {
+    url += `&language=${encodeURIComponent(language)}`;
   }
 
   return url;
@@ -691,7 +704,7 @@ function buildTtsUrl(text: string, previousText?: string, suffixText?: string): 
 /**
  * Call ElevenLabs API to generate TTS
  */
-async function callElevenLabsAPI(text: string, previousText?: string, suffixText?: string, seed?: number): Promise<Buffer> {
+async function callElevenLabsAPI(text: string, previousText?: string, suffixText?: string, seed?: number, language?: string): Promise<Buffer> {
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${CONFIG.voiceId}`;
 
   console.log(`Calling ElevenLabs API for text: "${text}"${previousText !== undefined && previousText !== '' ? ` (context: "${previousText}")` : ''}${suffixText !== undefined && suffixText !== '' ? ` (suffix: "${suffixText}")` : ''}${seed !== undefined ? ` (seed: ${seed})` : ''}`);
@@ -708,7 +721,7 @@ async function callElevenLabsAPI(text: string, previousText?: string, suffixText
   const requestBody: ElevenLabsRequest = {
     text: actualText,
     model_id: CONFIG.model,
-    language_code: 'ja',
+    language_code: language ?? 'ja',
     voice_settings: {
       stability: 0.5,
       similarity_boost: 0.75
@@ -763,7 +776,7 @@ function escapeXml(unsafe: string): string {
 /**
  * Call Azure Speech API to generate TTS
  */
-async function callAzureSpeechAPI(text: string, previousText?: string, suffixText?: string): Promise<Buffer> {
+async function callAzureSpeechAPI(text: string, previousText?: string, suffixText?: string, language?: string): Promise<Buffer> {
   console.log(`Calling Azure Speech API for text: "${text}"${previousText !== undefined && previousText !== '' ? ` (with context: "${previousText}")` : ''}${suffixText !== undefined && suffixText !== '' ? ` (with suffix: "${suffixText}")` : ''}`);
 
   return new Promise((resolve, reject) => {
@@ -781,8 +794,10 @@ async function callAzureSpeechAPI(text: string, previousText?: string, suffixTex
     const escapedText = escapeXml(text);
     const contextSsml = previousText !== undefined && previousText !== '' ? `<prosody volume="0.01">${escapeXml(previousText)}</prosody>` : '';
     const suffixSsml = suffixText !== undefined && suffixText !== '' ? `<prosody volume="0.01">${escapeXml(suffixText)}</prosody>` : '';
+        const lang = language ?? 'ja-JP';
+    const ssmlLang = lang === 'en' || lang === 'en-US' ? 'en-US' : 'ja-JP';
     const ssml = `
-      <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="ja-JP">
+      <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${ssmlLang}">
         <voice name="${CONFIG.azureVoice}">
           ${contextSsml}
           ${escapedText}
@@ -818,8 +833,9 @@ async function callAzureSpeechAPI(text: string, previousText?: string, suffixTex
 /**
  * Call OpenRouter Speech API to generate TTS
  */
-async function callOpenRouterSpeechAPI(text: string, previousText?: string, suffixText?: string): Promise<GeneratedAudio> {
-  const input = buildOpenRouterSpeechInput(text, previousText, suffixText);
+async function callOpenRouterSpeechAPI(text: string, previousText?: string, suffixText?: string, language?: string): Promise<GeneratedAudio> {
+  const effectivePreviousText = language === 'en' ? undefined : previousText;
+  const input = buildOpenRouterSpeechInput(text, effectivePreviousText, suffixText);
   const prefixLog = previousText !== undefined && previousText !== '' ? ` (prefix: "${previousText}")` : '';
   const suffixLog = suffixText !== undefined && suffixText !== '' ? ` (suffix: "${suffixText}")` : '';
 
@@ -1223,24 +1239,24 @@ async function generateAndCacheTTS(
   hash: string,
   previousText?: string,
   suffixText?: string,
-  seed?: number
+  seed?: number,
+  language?: string
 ): Promise<CachedAudio> {
   // Call the appropriate TTS provider
   let audio: GeneratedAudio;
 
   if (CONFIG.provider === 'elevenlabs') {
     audio = {
-      buffer: await callElevenLabsAPI(text, previousText, suffixText, seed),
+      buffer: await callElevenLabsAPI(text, previousText, suffixText, seed, language),
       contentType: 'audio/mpeg',
       extension: 'mp3'
     };
   } else if (CONFIG.provider === 'azure') {
-    // Azure doesn't support seed parameter
     if (seed !== undefined) {
       console.warn('Note: Azure Speech API does not support seed parameter (ignored)');
     }
     audio = {
-      buffer: await callAzureSpeechAPI(text, previousText, suffixText),
+      buffer: await callAzureSpeechAPI(text, previousText, suffixText, language),
       contentType: 'audio/mpeg',
       extension: 'mp3'
     };
@@ -1248,7 +1264,7 @@ async function generateAndCacheTTS(
     if (seed !== undefined) {
       console.warn('Note: OpenRouter Speech API does not support seed parameter (ignored)');
     }
-    audio = await callOpenRouterSpeechAPI(text, previousText, suffixText);
+    audio = await callOpenRouterSpeechAPI(text, previousText, suffixText, language);
   }
 
   audio = await trimAudioAfterFirstSilence(audio, text);
@@ -1259,7 +1275,7 @@ async function generateAndCacheTTS(
   writeFileSync(audioPath, audio.buffer);
 
   // Save metadata
-  saveCacheMetadata(hash, text, audio, previousText, suffixText);
+  saveCacheMetadata(hash, text, audio, previousText, suffixText, language);
 
   console.log(`✓ Cached TTS for "${text}" (${hash}.${audio.extension})`);
 
@@ -1322,7 +1338,7 @@ app.get('/api/feed', (req: Request, res: Response) => {
  * GET /tts?text=...&previous_text=...&suffix_text=... - Generate or serve cached TTS audio
  */
 app.get('/tts', (req: Request, res: Response): void => {
-  const { text, previous_text, suffix_text } = req.query;
+  const { text, previous_text, suffix_text, language } = req.query;
 
   // Validate input
   if (text === undefined || text === '') {
@@ -1343,11 +1359,12 @@ app.get('/tts', (req: Request, res: Response): void => {
   }
 
   const textValue = text;
-  const previousText = resolvePreviousText(previous_text);
+  const langValue = typeof language === 'string' && language !== '' ? language : undefined;
+  const previousText = resolvePreviousText(previous_text, langValue);
   const suffixText = resolveSuffixText(suffix_text);
 
   // Generate cache key
-  const hash = generateCacheKey(textValue, previousText, suffixText);
+  const hash = generateCacheKey(textValue, previousText, suffixText, langValue);
 
   // Check if cached
   const cachedAudio = getCachedAudio(hash);
@@ -1377,7 +1394,7 @@ app.get('/tts', (req: Request, res: Response): void => {
 
   void (async (): Promise<void> => {
     try {
-      const generatedAudio = await generateAndCacheTTS(textValue, hash, previousText, suffixText);
+      const generatedAudio = await generateAndCacheTTS(textValue, hash, previousText, suffixText, undefined, langValue);
 
       broadcastLiveFeedEvent({
         text: textValue,
@@ -1512,7 +1529,7 @@ app.get('/api/cache/audio/:hash', (req: Request<{ hash: string }>, res: Response
  * POST /api/regenerate - Delete cached audio and regenerate
  */
 app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res: Response): void => {
-  const { text, previous_text, suffix_text } = req.body;
+  const { text, previous_text, suffix_text, language } = req.body;
 
   if (text === undefined || text === '' || typeof text !== 'string') {
     res.status(400).json({ error: 'Missing "text" in request body' });
@@ -1520,12 +1537,13 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
   }
 
   const textValue = text;
-  const previousText = resolvePreviousText(previous_text);
+  const langValue = language !== undefined && language !== '' ? language : undefined;
+  const previousText = resolvePreviousText(previous_text, langValue);
   const suffixText = resolveSuffixText(suffix_text);
 
   void (async (): Promise<void> => {
     try {
-      const hash = generateCacheKey(textValue, previousText, suffixText);
+      const hash = generateCacheKey(textValue, previousText, suffixText, langValue);
       const audioPaths = [
         join(CONFIG.cacheDir, `${hash}.mp3`),
         join(CONFIG.cacheDir, `${hash}.wav`)
@@ -1547,7 +1565,7 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
       const randomSeed = Math.floor(Math.random() * 4294967296);
 
       // Generate new audio with random seed
-      await generateAndCacheTTS(textValue, hash, previousText, suffixText, randomSeed);
+      await generateAndCacheTTS(textValue, hash, previousText, suffixText, randomSeed, langValue);
 
       broadcastLiveFeedEvent({
         text: textValue,
@@ -1557,7 +1575,7 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
         status: 'REGENERATED'
       });
 
-      const url = buildTtsUrl(textValue, previousText, suffixText);
+      const url = buildTtsUrl(textValue, previousText, suffixText, langValue);
 
       res.json({
         success: true,
@@ -1578,7 +1596,7 @@ app.post('/api/regenerate', (req: Request<unknown, unknown, TtsRequestBody>, res
  * POST /api/test - Test TTS generation
  */
 app.post('/api/test', (req: Request<unknown, unknown, TtsRequestBody>, res: Response): void => {
-  const { text, previous_text, suffix_text } = req.body;
+  const { text, previous_text, suffix_text, language } = req.body;
 
   if (text === undefined || text === '' || typeof text !== 'string') {
     res.status(400).json({ error: 'Missing "text" in request body' });
@@ -1586,19 +1604,20 @@ app.post('/api/test', (req: Request<unknown, unknown, TtsRequestBody>, res: Resp
   }
 
   const textValue = text;
-  const previousText = resolvePreviousText(previous_text);
+  const langValue = language !== undefined && language !== '' ? language : undefined;
+  const previousText = resolvePreviousText(previous_text, langValue);
   const suffixText = resolveSuffixText(suffix_text);
 
   void (async (): Promise<void> => {
     try {
-      const hash = generateCacheKey(textValue, previousText, suffixText);
+      const hash = generateCacheKey(textValue, previousText, suffixText, langValue);
       const cached = getCachedAudio(hash) !== null;
 
       if (!cached) {
-        await generateAndCacheTTS(textValue, hash, previousText, suffixText);
+        await generateAndCacheTTS(textValue, hash, previousText, suffixText, undefined, langValue);
       }
 
-      const url = buildTtsUrl(textValue, previousText, suffixText);
+      const url = buildTtsUrl(textValue, previousText, suffixText, langValue);
 
       res.json({
         success: true,

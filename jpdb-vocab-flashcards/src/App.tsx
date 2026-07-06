@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAudio } from './lib/audio-unlock';
 
 const API_BASE_URL = 'http://localhost:3000';
 const TTS_BASE_URL = 'http://localhost:5065';
@@ -66,6 +65,17 @@ function shuffleArray<T>(arr: T[]): T[] {
   return shuffled;
 }
 
+function getEnglishPreview(meanings: Record<string, string[]>): string {
+  const [firstEntry] = Object.entries(meanings);
+  if (!firstEntry) return '';
+  const firstDef = firstEntry[1][0] || '';
+  return firstDef.split(';')[0].trim();
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(r => setTimeout(r, ms));
+}
+
 function App() {
   const [allCards, setAllCards] = useState<CardData[]>([]);
   const [queue, setQueue] = useState<CardData[]>([]);
@@ -74,8 +84,26 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectionOpen, setSelectionOpen] = useState(false);
-  const { playStreamingAudio } = useAudio();
+  const [englishTTSEnabled, setEnglishTTSEnabled] = useState(false);
+  const [autoMode, setAutoMode] = useState(false);
   const currentCardRef = useRef<HTMLDivElement>(null);
+
+  const autoModeRef = useRef(false);
+  const currentCardDataRef = useRef<CardData | null>(null);
+  const advanceRef = useRef<() => void>(() => {});
+  const englishTTSEnabledRef = useRef(false);
+
+  useEffect(() => {
+    currentCardDataRef.current = currentCard;
+  });
+
+  useEffect(() => {
+    advanceRef.current = advance;
+  });
+
+  useEffect(() => {
+    englishTTSEnabledRef.current = englishTTSEnabled;
+  }, [englishTTSEnabled]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/today/unique`)
@@ -120,13 +148,73 @@ function App() {
     }
   }, [allCards, queue, currentIndex]);
 
+  const playTTSWait = useCallback((text: string, language?: string): Promise<void> => {
+    let url = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(text)}`;
+    if (language !== undefined && language !== 'ja') {
+      url += `&language=${encodeURIComponent(language)}`;
+    }
+    return new Promise(resolve => {
+      const audio = new Audio(url);
+      audio.volume = 0.7;
+      audio.addEventListener('ended', () => resolve());
+      audio.addEventListener('error', () => resolve());
+      audio.play().catch(() => resolve());
+    });
+  }, []);
+
+  const playRevealAudio = useCallback(async (card: CardData) => {
+    await playTTSWait(card.word);
+    if (englishTTSEnabledRef.current) {
+      const enText = getEnglishPreview(card.meanings);
+      if (enText) {
+        await playTTSWait(enText, 'en');
+      }
+    }
+  }, [playTTSWait]);
+
   const handleReveal = useCallback(() => {
     setRevealed(true);
     if (currentCard) {
-      const url = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(currentCard.word)}`;
-      playStreamingAudio(url, { volume: 0.7 }).catch(() => {});
+      playRevealAudio(currentCard);
     }
-  }, [currentCard, playStreamingAudio]);
+  }, [currentCard, playRevealAudio]);
+
+  useEffect(() => {
+    if (!autoMode) {
+      autoModeRef.current = false;
+      return;
+    }
+
+    autoModeRef.current = true;
+
+    const run = async () => {
+      while (autoModeRef.current) {
+        const beforeCard = currentCardDataRef.current;
+        if (!beforeCard) {
+          await delay(500);
+          continue;
+        }
+
+        await delay(1000);
+        if (!autoModeRef.current) break;
+
+        setRevealed(true);
+        await delay(50);
+
+        await playRevealAudio(beforeCard);
+        if (!autoModeRef.current) break;
+
+        advanceRef.current();
+        await delay(300);
+      }
+    };
+
+    run();
+
+    return () => {
+      autoModeRef.current = false;
+    };
+  }, [autoMode, playRevealAudio]);
 
   const toggleCard = useCallback((id: string) => {
     setAllCards(prev => prev.map(c => c.id === id ? { ...c, selected: !c.selected } : c));
@@ -137,7 +225,7 @@ function App() {
 
   const selectAllCards = useCallback(() => {
     setAllCards(prev => prev.map(c => ({ ...c, selected: true })));
-    setQueue(prev => prev); // keep current queue unchanged, will reshuffle naturally
+    setQueue(prev => prev);
   }, []);
 
   const deselectAllCards = useCallback(() => {
@@ -150,6 +238,7 @@ function App() {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      if (autoModeRef.current) return;
       if (!revealed) {
         handleReveal();
       } else {
@@ -191,100 +280,121 @@ function App() {
       <div
         className="bottom-click-zone"
         onClick={() => {
+          if (autoModeRef.current) return;
           if (!revealed) handleReveal(); else advance();
         }}
       />
       <div id="app">
         <header>
-        <h1>単語カード</h1>
-        <span className="header-subtitle">Vocab Flashcards</span>
-      </header>
+          <h1>単語カード</h1>
+          <span className="header-subtitle">Vocab Flashcards</span>
+        </header>
 
-      <div className="selection-panel">
-        <button
-          className="selection-toggle"
-          onClick={() => setSelectionOpen(o => !o)}
-        >
-          {selectionOpen ? '▼' : '▶'} Card Selection ({selectedCount}/{allCards.length})
-        </button>
+        <div className="selection-panel">
+          <button
+            className="selection-toggle"
+            onClick={() => setSelectionOpen(o => !o)}
+          >
+            {selectionOpen ? '▼' : '▶'} Options ({selectedCount}/{allCards.length})
+          </button>
 
-        {selectionOpen && (
-          <div className="selection-list">
-            {selectableCards.length > 0 && (
-              <div className="selection-actions">
-                <button className="selection-action-btn" onClick={selectAllCards}>Select All</button>
-                <button className="selection-action-btn" onClick={deselectAllCards}>Deselect All</button>
+          {selectionOpen && (
+            <div className="selection-list">
+              <div className="settings-toggles">
+                <label className="settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={englishTTSEnabled}
+                    onChange={() => setEnglishTTSEnabled(prev => !prev)}
+                  />
+                  <span>English TTS</span>
+                </label>
+                <label className="settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={autoMode}
+                    onChange={() => setAutoMode(prev => !prev)}
+                  />
+                  <span>Auto Mode</span>
+                </label>
               </div>
-            )}
-            {selectableCards.map(card => (
-              <label key={card.id} className="card-select-item">
-                <input
-                  type="checkbox"
-                  checked={card.selected}
-                  onChange={() => toggleCard(card.id)}
-                />
-                <span className="card-select-word">{card.word}</span>
-                {card.reading && <span className="card-select-reading">（{card.reading}）</span>}
-              </label>
-            ))}
-            {selectableCards.length === 0 && (
-              <p className="empty-text">No vocabulary loaded. Complete some reviews on jpdb.io first!</p>
-            )}
-          </div>
-        )}
-      </div>
 
-      <div className="card-area" ref={currentCardRef} onClick={e => {
-        const target = e.target as HTMLElement;
-        if (target.closest('button, label, input, .selection-panel')) return;
-        if (!revealed) handleReveal(); else advance();
-      }}>
-        {currentCard ? (
-          <>
-            <div className="flashcard">
-              <div className="flashcard-word">{currentCard.word}</div>
-
-              {!revealed ? (
-                <button className="reveal-btn" onClick={handleReveal}>
-                  Reveal
-                </button>
-              ) : (
-                <div className="flashcard-details">
-                  {currentCard.reading && (
-                    <div className="flashcard-reading">
-                      {currentCard.reading}
-                    </div>
-                  )}
-                  <div className="flashcard-meanings">
-                    {Object.entries(currentCard.meanings).map(([pos, defs]) => (
-                      <div key={pos} className="meaning-group">
-                        <span className="meaning-pos">{pos}</span>
-                        <span className="meaning-defs">{defs.join('; ')}</span>
-                      </div>
-                    ))}
-                  </div>
+              {selectableCards.length > 0 && (
+                <div className="selection-actions">
+                  <button className="selection-action-btn" onClick={selectAllCards}>Select All</button>
+                  <button className="selection-action-btn" onClick={deselectAllCards}>Deselect All</button>
                 </div>
               )}
+              {selectableCards.map(card => (
+                <label key={card.id} className="card-select-item">
+                  <input
+                    type="checkbox"
+                    checked={card.selected}
+                    onChange={() => toggleCard(card.id)}
+                  />
+                  <span className="card-select-word">{card.word}</span>
+                  {card.reading && <span className="card-select-reading">（{card.reading}）</span>}
+                </label>
+              ))}
+              {selectableCards.length === 0 && (
+                <p className="empty-text">No vocabulary loaded. Complete some reviews on jpdb.io first!</p>
+              )}
             </div>
+          )}
+        </div>
 
-            {revealed && (
-              <button className="next-btn" onClick={advance}>
-                Next →
-              </button>
-            )}
-          </>
-        ) : (
-          <div className="empty-state">
-            <p>No cards selected.</p>
-            <p>Open the card selection panel above and pick some cards to study.</p>
-          </div>
-        )}
-      </div>
+        <div className="card-area" ref={currentCardRef} onClick={e => {
+          const target = e.target as HTMLElement;
+          if (target.closest('button, label, input, .selection-panel')) return;
+          if (autoModeRef.current) return;
+          if (!revealed) handleReveal(); else advance();
+        }}>
+          {currentCard ? (
+            <>
+              <div className="flashcard">
+                <div className="flashcard-word">{currentCard.word}</div>
 
-      <div className="controls-help">
-        <span>Press <kbd>Space</kbd> or <kbd>Enter</kbd> to reveal / advance</span>
+                {!revealed ? (
+                  <button className="reveal-btn" onClick={handleReveal} disabled={autoMode}>
+                    Reveal
+                  </button>
+                ) : (
+                  <div className="flashcard-details">
+                    {currentCard.reading && (
+                      <div className="flashcard-reading">
+                        {currentCard.reading}
+                      </div>
+                    )}
+                    <div className="flashcard-meanings">
+                      {Object.entries(currentCard.meanings).map(([pos, defs]) => (
+                        <div key={pos} className="meaning-group">
+                          <span className="meaning-pos">{pos}</span>
+                          <span className="meaning-defs">{defs.join('; ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {revealed && (
+                <button className="next-btn" onClick={advance} disabled={autoMode}>
+                  Next →
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="empty-state">
+              <p>No cards selected.</p>
+              <p>Open the Options panel above and pick some cards to study.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="controls-help">
+          <span>Press <kbd>Space</kbd> or <kbd>Enter</kbd> to reveal / advance</span>
+        </div>
       </div>
-    </div>
     </>
   );
 }

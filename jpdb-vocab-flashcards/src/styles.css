@@ -76,6 +76,29 @@ header h1 {
   gap: 4px;
 }
 
+.settings-toggles {
+  display: flex;
+  gap: 16px;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 6px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d3748;
+  user-select: none;
+}
+
+.settings-toggle input {
+  accent-color: #4a5568;
+}
+
 .selection-actions {
   display: flex;
   gap: 8px;
@@ -172,6 +195,20 @@ header h1 {
 
 .reveal-btn:active {
   transform: scale(0.97);
+}
+
+.reveal-btn:disabled,
+.next-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.reveal-btn:disabled:hover {
+  background: #4a5568;
+}
+
+.next-btn:disabled:hover {
+  background: #38a169;
 }
 
 .flashcard-details {
