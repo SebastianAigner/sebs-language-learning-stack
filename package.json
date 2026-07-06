@@ -9,6 +9,7 @@
     "jpdb-conjugation-trainer",
     "jpdb-review-transcriber",
     "jpdb-word-production-trainer",
+    "jpdb-vocab-flashcards",
     "tts-server"
   ],
   "scripts": {
@@ -18,6 +19,7 @@
     "dev:conjugation": "npm run dev -w jpdb-conjugation-trainer",
     "dev:transcriber": "npm run dev -w jpdb-review-transcriber",
     "dev:word-production": "npm run start -w jpdb-word-production-trainer",
+    "dev:flashcards": "npm run dev -w jpdb-vocab-flashcards",
     "dev:tts": "npm run dev -w tts-server"
   }
 }

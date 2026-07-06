@@ -83,6 +83,11 @@ CONJUGATION_PORT=${CONJUGATION_PORT:-5174}
 PANE_CONJUGATION=$(tmux split-window -h -t $PANE_TTS -P -F "#{pane_id}")
 tmux send-keys -t $PANE_CONJUGATION "cd '$SCRIPT_DIR/jpdb-conjugation-trainer' && npm run dev -- --port $CONJUGATION_PORT" C-m
 
+# Pane 6: jpdb-vocab-flashcards
+FLASHCARDS_PORT=${FLASHCARDS_PORT:-5175}
+PANE_FLASHCARDS=$(tmux split-window -h -t $PANE_CONJUGATION -P -F "#{pane_id}")
+tmux send-keys -t $PANE_FLASHCARDS "cd '$SCRIPT_DIR/jpdb-vocab-flashcards' && npm run dev -- --port $FLASHCARDS_PORT" C-m
+
 # Final layout adjustments
 # Use main-horizontal to keep banner on top and others side-by-side below
 tmux set-window-option -t $SESSION:0 main-pane-height 3
