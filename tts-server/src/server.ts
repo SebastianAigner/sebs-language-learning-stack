@@ -52,6 +52,11 @@ interface Config {
   trimLeadingKeepMs: number;
   trimKeepSilenceMs: number;
   trimMinimumAudioMs: number;
+  // Loudness normalization settings
+  normalizeLoudness: boolean;
+  normalizeTargetLufs: number;
+  normalizeTruePeakDb: number;
+  normalizeLoudnessRange: number;
   // Common settings
   cacheDir: string;
   maxTextLength: number;
@@ -86,6 +91,11 @@ const CONFIG: Config = {
   trimLeadingKeepMs: readNonNegativeNumber('TTS_TRIM_LEADING_KEEP_MS', 50),
   trimKeepSilenceMs: readNonNegativeNumber('TTS_TRIM_KEEP_SILENCE_MS', 150),
   trimMinimumAudioMs: readNonNegativeNumber('TTS_TRIM_MIN_AUDIO_MS', 250),
+  // Loudness normalization settings
+  normalizeLoudness: readBoolean('TTS_NORMALIZE_LOUDNESS', true),
+  normalizeTargetLufs: readNumber('TTS_NORMALIZE_TARGET_LUFS', -16),
+  normalizeTruePeakDb: readNumber('TTS_NORMALIZE_TRUE_PEAK_DB', -1.5),
+  normalizeLoudnessRange: readPositiveNumber('TTS_NORMALIZE_LRA', 11) ?? 11,
   // Common settings
   cacheDir: join(__dirname, '../cache'),
   maxTextLength: 500,
@@ -108,6 +118,7 @@ interface CacheMetadata {
   extension?: CachedAudioExtension;
   openRouterGenerationId?: string;
   silenceTrim?: SilenceTrimMetadata;
+  loudnessNormalization?: LoudnessNormalizationMetadata;
 }
 
 interface CacheFileInfo {
@@ -182,6 +193,15 @@ interface GeneratedAudio {
   extension: CachedAudioExtension;
   openRouterGenerationId?: string;
   silenceTrim?: SilenceTrimMetadata;
+  loudnessNormalization?: LoudnessNormalizationMetadata;
+}
+
+interface LoudnessNormalizationMetadata {
+  targetLufs: number;
+  truePeakDb: number;
+  loudnessRange: number;
+  measuredInputLufs?: number;
+  measuredInputTruePeakDb?: number;
 }
 
 interface SilenceTrimMetadata {
@@ -471,21 +491,31 @@ function getProviderCacheSettings(): Record<string, unknown> {
 }
 
 function getAudioProcessingCacheSettings(): Record<string, unknown> {
-  if (!CONFIG.trimAfterSilence && !CONFIG.trimLeadingSilence) {
-    return {
-      trimAfterSilence: false,
-      trimLeadingSilence: false
-    };
-  }
+  const trimSettings: Record<string, unknown> =
+    !CONFIG.trimAfterSilence && !CONFIG.trimLeadingSilence
+      ? {
+          trimAfterSilence: false,
+          trimLeadingSilence: false
+        }
+      : {
+          trimAfterSilence: CONFIG.trimAfterSilence,
+          trimLeadingSilence: CONFIG.trimLeadingSilence,
+          silenceThresholdDb: CONFIG.trimSilenceThresholdDb,
+          silenceMinDurationMs: CONFIG.trimSilenceMinDurationMs,
+          leadingKeepSilenceMs: CONFIG.trimLeadingKeepMs,
+          keepSilenceMs: CONFIG.trimKeepSilenceMs,
+          minimumAudioMs: CONFIG.trimMinimumAudioMs
+        };
 
   return {
-    trimAfterSilence: CONFIG.trimAfterSilence,
-    trimLeadingSilence: CONFIG.trimLeadingSilence,
-    silenceThresholdDb: CONFIG.trimSilenceThresholdDb,
-    silenceMinDurationMs: CONFIG.trimSilenceMinDurationMs,
-    leadingKeepSilenceMs: CONFIG.trimLeadingKeepMs,
-    keepSilenceMs: CONFIG.trimKeepSilenceMs,
-    minimumAudioMs: CONFIG.trimMinimumAudioMs
+    ...trimSettings,
+    loudnessNormalization: CONFIG.normalizeLoudness
+      ? {
+          targetLufs: CONFIG.normalizeTargetLufs,
+          truePeakDb: CONFIG.normalizeTruePeakDb,
+          loudnessRange: CONFIG.normalizeLoudnessRange
+        }
+      : false
   };
 }
 
@@ -541,6 +571,9 @@ function saveCacheMetadata(
   }
   if (audio.silenceTrim !== undefined) {
     metadata.silenceTrim = audio.silenceTrim;
+  }
+  if (audio.loudnessNormalization !== undefined) {
+    metadata.loudnessNormalization = audio.loudnessNormalization;
   }
 
   const metadataPath = join(CONFIG.cacheDir, `${hash}.json`);
@@ -1104,6 +1137,160 @@ async function trimAudioAfterFirstSilence(audio: GeneratedAudio, text: string): 
   }
 }
 
+/**
+ * Normalize perceived loudness (EBU R128) so audio from every provider and
+ * language lands at the same target volume. Uses ffmpeg's two-pass loudnorm:
+ * the first pass measures the input, the second applies a linear correction
+ * using those measurements for accurate, non-distorting normalization.
+ */
+async function normalizeAudioLoudness(audio: GeneratedAudio, text: string): Promise<GeneratedAudio> {
+  if (!CONFIG.normalizeLoudness) {
+    return audio;
+  }
+
+  const tempDir = mkdtempSync(join(tmpdir(), 'tts-loudnorm-'));
+  const inputPath = join(tempDir, `input.${audio.extension}`);
+  const outputPath = join(tempDir, `output.${audio.extension}`);
+  const baseFilter =
+    `loudnorm=I=${CONFIG.normalizeTargetLufs}:TP=${CONFIG.normalizeTruePeakDb}:LRA=${CONFIG.normalizeLoudnessRange}`;
+
+  try {
+    writeFileSync(inputPath, audio.buffer);
+
+    // Pass 1: measure the input loudness (loudnorm prints JSON stats to stderr).
+    const { stderr } = await runFfmpeg([
+      '-hide_banner',
+      '-nostdin',
+      '-i',
+      inputPath,
+      '-af',
+      `${baseFilter}:print_format=json`,
+      '-f',
+      'null',
+      '-'
+    ]);
+
+    const measured = parseLoudnormStats(stderr);
+
+    // loudnorm always processes at 192kHz internally, so we must resample back
+    // to a valid rate for the output codec (mp3 cannot encode 192kHz).
+    const sampleRate =
+      audio.extension === 'wav'
+        ? readWavSampleRate(audio.buffer) ?? CONFIG.openRouterPcmSampleRate
+        : 48000;
+
+    // Pass 2: apply normalization using the measured values when available.
+    const secondPassFilter =
+      measured !== null
+        ? `${baseFilter}:measured_I=${measured.inputI}:measured_TP=${measured.inputTp}:measured_LRA=${measured.inputLra}:measured_thresh=${measured.inputThresh}:offset=${measured.targetOffset}:linear=true:print_format=summary`
+        : baseFilter;
+
+    const encodeArgs =
+      audio.extension === 'wav' ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'libmp3lame', '-b:a', '192k'];
+
+    await runFfmpeg([
+      '-y',
+      '-hide_banner',
+      '-nostdin',
+      '-loglevel',
+      'error',
+      '-i',
+      inputPath,
+      '-af',
+      `${secondPassFilter},aresample=${sampleRate}`,
+      ...encodeArgs,
+      outputPath
+    ]);
+
+    const normalizedBuffer = readFileSync(outputPath);
+    assertAudioBufferHasContent(normalizedBuffer, 'FFmpeg loudness normalization');
+    if (audio.extension === 'wav' && normalizedBuffer.length <= 44) {
+      console.warn(`FFmpeg loudness normalization for "${text}" produced empty audio; keeping original audio`);
+      return audio;
+    }
+
+    const measuredInputLufs = measured !== null ? Number(measured.inputI) : undefined;
+    const measuredInputTruePeakDb = measured !== null ? Number(measured.inputTp) : undefined;
+    console.log(
+      `Normalized TTS loudness for "${text}" to ${CONFIG.normalizeTargetLufs} LUFS` +
+        (measuredInputLufs !== undefined && Number.isFinite(measuredInputLufs)
+          ? ` (input ${measuredInputLufs} LUFS)`
+          : '')
+    );
+
+    return {
+      ...audio,
+      buffer: normalizedBuffer,
+      loudnessNormalization: {
+        targetLufs: CONFIG.normalizeTargetLufs,
+        truePeakDb: CONFIG.normalizeTruePeakDb,
+        loudnessRange: CONFIG.normalizeLoudnessRange,
+        ...(measuredInputLufs !== undefined && Number.isFinite(measuredInputLufs)
+          ? { measuredInputLufs }
+          : {}),
+        ...(measuredInputTruePeakDb !== undefined && Number.isFinite(measuredInputTruePeakDb)
+          ? { measuredInputTruePeakDb }
+          : {})
+      }
+    };
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+interface LoudnormStats {
+  inputI: string;
+  inputTp: string;
+  inputLra: string;
+  inputThresh: string;
+  targetOffset: string;
+}
+
+/**
+ * Extract the JSON measurement block printed by loudnorm's first pass.
+ */
+function parseLoudnormStats(ffmpegOutput: string): LoudnormStats | null {
+  const match = ffmpegOutput.match(/\{[\s\S]*?\}/);
+  if (match === null) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+    const inputI = parsed.input_i;
+    const inputTp = parsed.input_tp;
+    const inputLra = parsed.input_lra;
+    const inputThresh = parsed.input_thresh;
+    const targetOffset = parsed.target_offset;
+
+    if (
+      typeof inputI !== 'string' ||
+      typeof inputTp !== 'string' ||
+      typeof inputLra !== 'string' ||
+      typeof inputThresh !== 'string' ||
+      typeof targetOffset !== 'string'
+    ) {
+      return null;
+    }
+
+    return { inputI, inputTp, inputLra, inputThresh, targetOffset };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the sample rate from a WAV header (bytes 24-27, little-endian).
+ */
+function readWavSampleRate(buffer: Buffer): number | undefined {
+  if (buffer.length < 28 || buffer.toString('ascii', 0, 4) !== 'RIFF') {
+    return undefined;
+  }
+
+  const sampleRate = buffer.readUInt32LE(24);
+  return sampleRate > 0 ? sampleRate : undefined;
+}
+
 function parseSilenceIntervals(ffmpegOutput: string): SilenceInterval[] {
   const silenceIntervals: SilenceInterval[] = [];
   let activeInterval: SilenceInterval | undefined;
@@ -1270,6 +1457,7 @@ async function generateAndCacheTTS(
   }
 
   audio = await trimAudioAfterFirstSilence(audio, text);
+  audio = await normalizeAudioLoudness(audio, text);
   assertGeneratedAudioHasContent(audio);
 
   // Save to cache
@@ -1638,7 +1826,7 @@ app.post('/api/test', (req: Request<unknown, unknown, TtsRequestBody>, res: Resp
 });
 
 // Start server
-app.listen(CONFIG.port, () => {
+app.listen(CONFIG.port, '0.0.0.0', () => {
   console.log(`\n  \x1b[34m\x1b[1mTTS SERVER\x1b[0m is running`);
   console.log('  ═══════════════════════════════════════════');
   console.log('    Japanese TTS Service');
@@ -1660,6 +1848,7 @@ app.listen(CONFIG.port, () => {
 
   console.log(`    Cache:    ${CONFIG.cacheDir}`);
   console.log(`    Trim:     ${CONFIG.trimLeadingSilence ? 'leading, ' : ''}${CONFIG.trimAfterSilence ? `after ${CONFIG.trimSilenceMinDurationMs}ms below ${CONFIG.trimSilenceThresholdDb}dB` : 'after disabled'}`);
+  console.log(`    Loudness: ${CONFIG.normalizeLoudness ? `${CONFIG.normalizeTargetLufs} LUFS (TP ${CONFIG.normalizeTruePeakDb}dB, LRA ${CONFIG.normalizeLoudnessRange})` : 'normalization disabled'}`);
   console.log('');
   console.log(`    Management UI: http://localhost:${CONFIG.port}`);
   console.log(`    TTS Endpoint:  http://localhost:${CONFIG.port}/tts?text=...`);

@@ -19,7 +19,10 @@
       "Bash(npm update:*)",
       "Bash(npm install:*)",
       "Bash(node -e:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(ffmpeg -version)",
+      "Bash(ffmpeg -hide_banner -filters)",
+      "Bash(npm run *)"
     ]
   }
 }
