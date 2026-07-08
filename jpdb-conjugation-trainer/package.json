@@ -44,6 +44,7 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
+    "@sebs/audio-unlock": "*",
     "@openrouter/sdk": "^0.3.10",
     "@tanstack/react-router": "^1.144.0",
     "@tanstack/router-devtools": "^1.144.0",

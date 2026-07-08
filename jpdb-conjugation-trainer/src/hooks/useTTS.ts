@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAudio } from '../lib/audio-unlock';
+import { useAudio } from '@sebs/audio-unlock';
 
 interface UseTTSOptions {
   ttsServiceUrl: string;

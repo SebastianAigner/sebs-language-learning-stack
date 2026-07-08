@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GradingResult, ConfigState } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { useAudio } from '../lib/audio-unlock';
+import { useAudio } from '@sebs/audio-unlock';
 import { useTTS } from '../hooks/useTTS';
 import { useAutoAdvance } from '../hooks/useAutoAdvance';
 import { useTypingPractice } from '../hooks/useTypingPractice';

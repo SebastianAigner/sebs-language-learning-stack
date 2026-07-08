@@ -1,7 +1,7 @@
 import { SessionProvider } from './contexts/SessionContext';
 import { ConfigProvider } from './contexts/ConfigContext';
 import { UIProvider } from './contexts/UIContext';
-import { AudioProvider, AudioUnlockProvider } from './lib/audio-unlock';
+import { AudioProvider, AudioUnlockProvider } from '@sebs/audio-unlock';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from './routes';

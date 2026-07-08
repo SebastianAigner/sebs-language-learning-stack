@@ -1,0 +1,18 @@
+{
+  "name": "@sebs/audio-unlock",
+  "version": "1.0.0",
+  "description": "Shared React library for browser autoplay unlocking and audio playback",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
+}

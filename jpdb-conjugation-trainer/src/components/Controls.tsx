@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useFetchVocabulary } from '../hooks/useFetchVocabulary';
 import { useNotification } from '../contexts/NotificationContext';
-import { useAudioUnlock } from '../lib/audio-unlock';
+import { useAudioUnlock } from '@sebs/audio-unlock';
 import { Button } from './ui/Button';
 
 import { useNavigate } from '@tanstack/react-router';

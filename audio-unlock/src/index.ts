@@ -2,11 +2,12 @@
  * Audio Unlock Library
  *
  * A self-contained, reusable library for managing browser autoplay policies
- * and audio playback in React applications.
+ * and audio playback in React applications. Shared across the monorepo as the
+ * `@sebs/audio-unlock` workspace package.
  *
  * @example
  * ```tsx
- * import { AudioUnlockProvider, AudioProvider, useAudioUnlock, useAudio } from './lib/audio-unlock';
+ * import { AudioUnlockProvider, AudioProvider, useAudioUnlock, useAudio } from '@sebs/audio-unlock';
  *
  * function App() {
  *   return (

@@ -34,6 +34,13 @@ export interface AudioContextType {
    * Stop currently playing streaming audio
    */
   stopStreamingAudio: () => void;
+
+  /**
+   * Prime the shared streaming element from within a user gesture so that iOS
+   * Safari will permit later programmatic playback on it (e.g. clips that play
+   * after a timer, in an auto-advancing flow). Safe to call repeatedly.
+   */
+  unlockStreamingAudio: () => void;
 }
 
 export interface PlaySoundOptions {
@@ -46,6 +53,13 @@ export interface PlaySoundOptions {
 export interface PlayStreamingOptions {
   /** Volume level (0-1), defaults to 0.7 */
   volume?: number;
+  /**
+   * Resolve the returned promise when the clip finishes playing (the `ended`
+   * event) instead of when playback starts. Enables sequencing clips
+   * back-to-back and repeating them. Errors/stalls resolve too (never reject)
+   * so one bad clip can't break a longer sequence. Defaults to false.
+   */
+  awaitEnd?: boolean;
 }
 
 export interface AudioUnlockProviderProps {

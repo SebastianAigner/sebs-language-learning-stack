@@ -5,6 +5,7 @@
   "description": "A collection of tools and services for Japanese language learning",
   "private": true,
   "workspaces": [
+    "audio-unlock",
     "brickwall",
     "jpdb-conjugation-trainer",
     "jpdb-review-transcriber",
