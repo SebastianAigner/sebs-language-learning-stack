@@ -17,6 +17,7 @@
     "vite": "^7.3.0"
   },
   "dependencies": {
+    "@sebs/audio-unlock": "*",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }

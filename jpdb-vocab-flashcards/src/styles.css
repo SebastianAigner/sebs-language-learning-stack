@@ -99,6 +99,41 @@ header h1 {
   accent-color: #4a5568;
 }
 
+.auto-pause-input {
+  width: 56px;
+  padding: 2px 6px;
+  font-size: 13px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  text-align: center;
+  font-family: inherit;
+}
+
+.step-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background: #f7fafc;
+  color: #2d3748;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.step-btn:hover {
+  background: #edf2f7;
+}
+
+.step-btn:active {
+  background: #e2e8f0;
+}
+
 .selection-actions {
   display: flex;
   gap: 8px;

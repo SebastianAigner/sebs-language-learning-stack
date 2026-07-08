@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAudio } from '@sebs/audio-unlock';
 
-const API_BASE_URL = 'http://localhost:3000';
-const TTS_BASE_URL = 'http://localhost:5065';
+// Derive backends from the current host so the app works both on the dev
+// machine (localhost) and from other devices on the LAN (e.g. an iPhone).
+const HOST = window.location.hostname;
+const API_BASE_URL = `http://${HOST}:3000`;
+const TTS_BASE_URL = `http://${HOST}:5065`;
 
 interface VocabContent {
   url: string;
@@ -28,6 +32,11 @@ interface CardData {
   reading: string;
   meanings: Record<string, string[]>;
   selected: boolean;
+}
+
+interface LoadedAudio {
+  jp: HTMLAudioElement | null;
+  en: HTMLAudioElement | null;
 }
 
 function parseEntries(entries: VocabEntry[]): CardData[] {
@@ -68,8 +77,23 @@ function shuffleArray<T>(arr: T[]): T[] {
 function getEnglishPreview(meanings: Record<string, string[]>): string {
   const [firstEntry] = Object.entries(meanings);
   if (!firstEntry) return '';
-  const firstDef = firstEntry[1][0] || '';
-  return firstDef.split(';')[0].trim();
+  const defs = firstEntry[1];
+  if (defs.length === 0) return '';
+  const first = defs[0];
+  if (first.length > 20 || first.split(/\s+/).filter(Boolean).length > 3) {
+    return first;
+  }
+  return defs.slice(0, 3).join('; ');
+}
+
+function jpAudioUrl(card: CardData): string {
+  return `${TTS_BASE_URL}/tts?text=${encodeURIComponent(card.word)}`;
+}
+
+function enAudioUrl(card: CardData): string | null {
+  const enText = getEnglishPreview(card.meanings);
+  if (!enText) return null;
+  return `${TTS_BASE_URL}/tts?text=${encodeURIComponent(enText)}&language=en`;
 }
 
 function delay(ms: number): Promise<void> {
@@ -86,18 +110,47 @@ function App() {
   const [selectionOpen, setSelectionOpen] = useState(false);
   const [englishTTSEnabled, setEnglishTTSEnabled] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
+  const [autoPause, setAutoPause] = useState(1);
+  const [interPause, setInterPause] = useState(0.5);
+  const [reverseOrder, setReverseOrder] = useState(false);
+  const [repeatCount, setRepeatCount] = useState(1);
   const currentCardRef = useRef<HTMLDivElement>(null);
 
   const autoModeRef = useRef(false);
+  const autoPauseRef = useRef(1);
+  const interPauseRef = useRef(0.5);
+  const reverseOrderRef = useRef(false);
+  const repeatCountRef = useRef(1);
+  const allCardsRef = useRef<CardData[]>(allCards);
+  allCardsRef.current = allCards;
   const currentCardDataRef = useRef<CardData | null>(null);
+  const queueRef = useRef<CardData[]>([]);
+  const currentIndexRef = useRef(0);
   const advanceRef = useRef<() => void>(() => {});
   const englishTTSEnabledRef = useRef(false);
-  const preloadedJpAudioRef = useRef<HTMLAudioElement | null>(null);
-  const preloadedEnAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Audio playback goes through the shared @sebs/audio-unlock library:
+  // playStreamingAudio reuses a single element (reassigning `src` per clip,
+  // which is what makes repeats replay reliably on iOS), and
+  // unlockStreamingAudio primes that element from a user gesture so the timed
+  // plays auto mode makes after a setTimeout aren't blocked by iOS.
+  const { playStreamingAudio, unlockStreamingAudio, stopStreamingAudio } = useAudio();
+
+  // Audio elements are cached by card id so the current and next card can be
+  // preloaded (HTTP-cache warming) without one clobbering the other.
+  const audioCacheRef = useRef<Map<string, Promise<LoadedAudio>>>(new Map());
 
   useEffect(() => {
     currentCardDataRef.current = currentCard;
   });
+
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
+
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   useEffect(() => {
     advanceRef.current = advance;
@@ -106,6 +159,22 @@ function App() {
   useEffect(() => {
     englishTTSEnabledRef.current = englishTTSEnabled;
   }, [englishTTSEnabled]);
+
+  useEffect(() => {
+    autoPauseRef.current = autoPause;
+  }, [autoPause]);
+
+  useEffect(() => {
+    interPauseRef.current = interPause;
+  }, [interPause]);
+
+  useEffect(() => {
+    reverseOrderRef.current = reverseOrder;
+  }, [reverseOrder]);
+
+  useEffect(() => {
+    repeatCountRef.current = repeatCount;
+  }, [repeatCount]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/today/unique`)
@@ -128,24 +197,63 @@ function App() {
   const selectableCards = allCards;
   const currentCard = queue[currentIndex] ?? null;
 
-  useEffect(() => {
-    if (!currentCard) return;
-    const jpUrl = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(currentCard.word)}`;
-    const jpAudio = new Audio(jpUrl);
-    jpAudio.volume = 0.7;
-    preloadedJpAudioRef.current = jpAudio;
+  const loadAudio = (url: string): Promise<HTMLAudioElement> =>
+    new Promise(resolve => {
+      const audio = new Audio();
+      audio.volume = 0.7;
+      audio.preload = 'auto';
+      audio.addEventListener('canplaythrough', () => resolve(audio), { once: true });
+      audio.addEventListener('error', () => resolve(audio), { once: true });
+      // Set src + load() explicitly so the fetch is kicked off eagerly, right now.
+      audio.src = url;
+      audio.load();
+    });
 
-    let enAudio: HTMLAudioElement | null = null;
+  // Kick off (or reuse) the audio load for a card. The returned promise is
+  // cached by card id, so repeated calls for the same card share one fetch and
+  // preloading the next card never disturbs the current one.
+  const preloadCard = useCallback((card: CardData): Promise<LoadedAudio> => {
+    const cache = audioCacheRef.current;
+    const existing = cache.get(card.id);
+    if (existing) return existing;
+
+    const jpUrl = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(card.word)}`;
+    const jpLoad = loadAudio(jpUrl);
+
+    let enLoad: Promise<HTMLAudioElement | null> = Promise.resolve(null);
     if (englishTTSEnabledRef.current) {
-      const enText = getEnglishPreview(currentCard.meanings);
+      const enText = getEnglishPreview(card.meanings);
       if (enText) {
         const enUrl = `${TTS_BASE_URL}/tts?text=${encodeURIComponent(enText)}&language=en`;
-        enAudio = new Audio(enUrl);
-        enAudio.volume = 0.7;
+        enLoad = loadAudio(enUrl);
       }
     }
-    preloadedEnAudioRef.current = enAudio;
-  }, [currentCard]);
+
+    const entry = Promise.all([jpLoad, enLoad]).then(([jp, en]) => ({ jp, en }));
+    cache.set(card.id, entry);
+    return entry;
+  }, []);
+
+  // Whenever the active card changes, eagerly preload BOTH the current card and
+  // the next one in the queue, then prune everything else so the cache stays small.
+  useEffect(() => {
+    if (!currentCard) return;
+    preloadCard(currentCard);
+
+    const nextCard = queue[currentIndex + 1];
+    if (nextCard) preloadCard(nextCard);
+
+    const keep = new Set([currentCard.id, nextCard?.id].filter(Boolean) as string[]);
+    for (const id of audioCacheRef.current.keys()) {
+      if (!keep.has(id)) audioCacheRef.current.delete(id);
+    }
+  }, [currentCard, currentIndex, queue, preloadCard]);
+
+  // Enabling/disabling English TTS changes what needs to be fetched per card,
+  // so drop the cache and let it rebuild.
+  useEffect(() => {
+    audioCacheRef.current.clear();
+  }, [englishTTSEnabled]);
 
   const advance = useCallback(() => {
     const selected = allCards.filter(c => c.selected);
@@ -169,30 +277,37 @@ function App() {
     }
   }, [allCards, queue, currentIndex]);
 
-  const playRevealAudio = useCallback(async () => {
-    const jpAudio = preloadedJpAudioRef.current;
-    if (!jpAudio) return;
+  // Play a card's clips through the shared library. `awaitEnd` makes each call
+  // resolve when the clip finishes, so JP/EN and repeats sequence correctly.
+  // The library reassigns `src` on its single element per clip, which resets it
+  // for reliable replay; audio is served with a long-lived Cache-Control, so
+  // repeats and the English clip load from the browser's HTTP cache.
+  const playCardAudio = useCallback(async (card: CardData) => {
+    const jpUrl = jpAudioUrl(card);
+    const enUrl = englishTTSEnabledRef.current ? enAudioUrl(card) : null;
+    const play = (url: string) => playStreamingAudio(url, { volume: 0.7, awaitEnd: true });
 
-    await new Promise<void>(resolve => {
-      jpAudio.addEventListener('ended', () => resolve());
-      jpAudio.addEventListener('error', () => resolve());
-      jpAudio.play().catch(() => resolve());
-    });
-
-    const enAudio = preloadedEnAudioRef.current;
-    if (enAudio) {
-      await new Promise<void>(resolve => {
-        enAudio.addEventListener('ended', () => resolve());
-        enAudio.addEventListener('error', () => resolve());
-        enAudio.play().catch(() => resolve());
-      });
+    if (reverseOrderRef.current) {
+      if (enUrl) {
+        await play(enUrl);
+        await delay(interPauseRef.current * 1000);
+      }
+      await play(jpUrl);
+    } else {
+      await play(jpUrl);
+      if (enUrl) {
+        await delay(interPauseRef.current * 1000);
+        await play(enUrl);
+      }
     }
-  }, []);
+  }, [playStreamingAudio]);
 
   const handleReveal = useCallback(() => {
+    // Prime playback from within this user gesture (see unlockStreamingAudio).
+    unlockStreamingAudio();
     setRevealed(true);
-    playRevealAudio();
-  }, [playRevealAudio]);
+    if (currentCard) playCardAudio(currentCard);
+  }, [currentCard, playCardAudio, unlockStreamingAudio]);
 
   useEffect(() => {
     if (!autoMode) {
@@ -204,19 +319,38 @@ function App() {
 
     const run = async () => {
       while (autoModeRef.current) {
-        const beforeCard = currentCardDataRef.current;
-        if (!beforeCard) {
+        const card = currentCardDataRef.current;
+        if (!card) {
           await delay(500);
           continue;
         }
 
-        await delay(1000);
+        // Preload the next card up front, so it has the entire duration of this
+        // card (auto-pause + playback) to finish loading before it's shown.
+        const nextIdx = currentIndexRef.current + 1;
+        if (nextIdx < queueRef.current.length) {
+          preloadCard(queueRef.current[nextIdx]);
+        }
+
+        // Warm the browser cache for this card (fire-and-forget). Playback
+        // loads the URL on demand, so we must not await this — on iOS the
+        // preload's `canplaythrough` may never fire, which would stall the loop.
+        preloadCard(card);
+
+        await delay(autoPauseRef.current * 1000);
         if (!autoModeRef.current) break;
 
         setRevealed(true);
         await delay(50);
 
-        await playRevealAudio();
+        const reps = Math.max(1, repeatCountRef.current);
+        for (let i = 0; i < reps; i++) {
+          await playCardAudio(card);
+          if (!autoModeRef.current) break;
+          if (i < reps - 1) {
+            await delay(interPauseRef.current * 1000);
+          }
+        }
         if (!autoModeRef.current) break;
 
         advanceRef.current();
@@ -228,19 +362,35 @@ function App() {
 
     return () => {
       autoModeRef.current = false;
+      stopStreamingAudio();
     };
-  }, [autoMode, playRevealAudio]);
+  }, [autoMode, playCardAudio, preloadCard, stopStreamingAudio]);
 
   const toggleCard = useCallback((id: string) => {
+    const card = allCardsRef.current.find(c => c.id === id);
+    if (!card) return;
+    const wasSelected = card.selected;
+
     setAllCards(prev => prev.map(c => c.id === id ? { ...c, selected: !c.selected } : c));
-    setQueue(prev => prev.filter(c => c.id !== id));
+
+    if (wasSelected) {
+      setQueue(q => q.filter(c => c.id !== id));
+    } else {
+      setQueue(q => q.some(c => c.id === id) ? q : [...q, { ...card, selected: true }]);
+    }
+
     setCurrentIndex(0);
     setRevealed(false);
   }, []);
 
   const selectAllCards = useCallback(() => {
+    const currentAllCards = allCardsRef.current;
     setAllCards(prev => prev.map(c => ({ ...c, selected: true })));
-    setQueue(prev => prev);
+    setQueue(prev => {
+      const existingIds = new Set(prev.map(c => c.id));
+      const toAdd = currentAllCards.filter(c => !existingIds.has(c.id));
+      return [...prev, ...toAdd];
+    });
   }, []);
 
   const deselectAllCards = useCallback(() => {
@@ -328,9 +478,66 @@ function App() {
                   <input
                     type="checkbox"
                     checked={autoMode}
-                    onChange={() => setAutoMode(prev => !prev)}
+                    onChange={() => { unlockStreamingAudio(); setAutoMode(prev => !prev); }}
                   />
                   <span>Auto Mode</span>
+                </label>
+                <label className="settings-toggle">
+                  <span>Pause:</span>
+                  <input
+                    type="number"
+                    className="auto-pause-input"
+                    min="0.5"
+                    max="10"
+                    step="0.5"
+                    value={autoPause}
+                    onChange={e => setAutoPause(Number(e.target.value))}
+                  />
+                  <span>s</span>
+                </label>
+                <label className="settings-toggle">
+                  <span>Inter:</span>
+                  <input
+                    type="number"
+                    className="auto-pause-input"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={interPause}
+                    onChange={e => setInterPause(Number(e.target.value))}
+                  />
+                  <span>s</span>
+                </label>
+                <label className="settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={reverseOrder}
+                    onChange={() => setReverseOrder(prev => !prev)}
+                  />
+                  <span>Reverse JP/EN</span>
+                </label>
+                <label className="settings-toggle">
+                  <span>Repeat:</span>
+                  <button
+                    className="step-btn"
+                    onClick={() => setRepeatCount(p => Math.max(1, p - 1))}
+                    type="button"
+                  >−</button>
+                  <input
+                    type="number"
+                    className="auto-pause-input"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value={repeatCount}
+                    onChange={e => setRepeatCount(Math.max(1, Number(e.target.value)))}
+                  />
+                  <button
+                    className="step-btn"
+                    onClick={() => setRepeatCount(p => Math.min(10, p + 1))}
+                    type="button"
+                  >+</button>
+                  <span>x</span>
                 </label>
               </div>
 
