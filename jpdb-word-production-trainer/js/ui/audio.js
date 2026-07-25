@@ -28,6 +28,27 @@ export function playWrongSound() {
   }
 }
 
+// Fire-and-forget prefetch to warm the TTS server cache
+export function prefetchTTS(text, prefixText = '', suffixText = '') {
+  if (!text) return;
+
+  try {
+    const baseUrl = CONFIG.TTS_BASE_URL.replace(/\/$/, '');
+    let url = `${baseUrl}/tts?text=${encodeURIComponent(text)}`;
+    const trimmedPrefixText = prefixText.trim();
+    if (trimmedPrefixText) {
+      url += `&previous_text=${encodeURIComponent(trimmedPrefixText)}`;
+    }
+    const trimmedSuffixText = suffixText.trim();
+    if (trimmedSuffixText) {
+      url += `&suffix_text=${encodeURIComponent(trimmedSuffixText)}`;
+    }
+    fetch(url).catch(() => {});
+  } catch (error) {
+    // Silently ignore prefetch errors
+  }
+}
+
 // Play TTS for the given text
 export function playTTS(text, prefixText = '', suffixText = '') {
   if (!text) return;

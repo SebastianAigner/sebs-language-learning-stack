@@ -4,7 +4,7 @@ import { CONFIG } from '../config.js';
 import { isExactMatch } from '../utils.js';
 import { getQueueForDebug, getReviewedCorrectlyForDebug, getMostRepeatedForDebug } from '../debug.js';
 import { loadMistakes } from '../mistakes.js';
-import { playCorrectSound, playWrongSound, playTTS } from './audio.js';
+import { playCorrectSound, playWrongSound, playTTS, prefetchTTS } from './audio.js';
 import { startAutoAdvanceTimer, clearAutoAdvanceTimer } from './timer.js';
 
 /**
@@ -57,6 +57,10 @@ export function showPromptView(elements, item, currentInput, state) {
   elements.completionView.classList.add('hidden');
 
   state.ui.showingComparison = false;
+
+  // Asynchronously request TTS audio so it's cached by the time the user submits
+  const correctJapanese = item.japaneseText || item.japanese || item.spelling || '';
+  prefetchTTS(correctJapanese, state.config.ttsPrefixText, state.config.ttsSuffixText);
 
   // Focus input field (using setTimeout to ensure it happens after render)
   setTimeout(() => {
