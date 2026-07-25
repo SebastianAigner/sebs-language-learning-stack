@@ -83,16 +83,15 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
   englishDef = filterDefinition(englishDef, state.config.blacklist);
 
   elements.comparisonEnglishText.textContent = englishDef;
-  elements.userAnswer.textContent = currentInput;
   elements.correctAnswer.textContent = correctJapanese;
 
-  // Show reading if available (for all answers)
+  // Show reading if available (inside correct answer box, above the kanji)
   const reading = item.reading;
   if (reading) {
-    elements.comparisonReading.textContent = `Reading: ${reading}`;
-    elements.comparisonReading.style.display = 'block';
+    elements.correctAnswerReading.textContent = reading;
+    elements.correctAnswerReading.style.display = 'block';
   } else {
-    elements.comparisonReading.style.display = 'none';
+    elements.correctAnswerReading.style.display = 'none';
   }
 
   // Check for exact match
@@ -126,6 +125,9 @@ export function showComparisonView(elements, item, currentInput, state, handleGo
     // Show retry section, hide grading controls
     elements.retrySection.classList.remove('hidden');
     elements.gradingControls.classList.add('hidden');
+
+    // Set retry prompt with user's answer
+    elements.retryPrompt.textContent = `Type the correct answer to continue (you answered: ${currentInput})`;
 
     // Show reading hint if available
     const reading = item.reading;

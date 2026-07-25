@@ -18,13 +18,13 @@ export function initializeDOMElements() {
 
     // Comparison view
     comparisonEnglishText: document.getElementById('comparison-english-text'),
-    userAnswer: document.getElementById('user-answer'),
     correctAnswer: document.getElementById('correct-answer'),
     comparisonGrid: document.getElementById('comparison-grid'),
-    comparisonReading: document.getElementById('comparison-reading'),
+    correctAnswerReading: document.getElementById('correct-answer-reading'),
     goodBtn: document.getElementById('good-btn'),
     notGoodBtn: document.getElementById('not-good-btn'),
     retrySection: document.getElementById('retry-section'),
+    retryPrompt: document.getElementById('retry-prompt'),
     retryInput: document.getElementById('retry-input'),
     readingHint: document.getElementById('reading-hint'),
     skipTypingBtn: document.getElementById('skip-typing-btn'),

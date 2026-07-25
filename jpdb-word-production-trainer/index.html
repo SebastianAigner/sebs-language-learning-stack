@@ -56,27 +56,19 @@
         spellcheck="false">
     </div>
 
-    <!-- Comparison View: Show side-by-side comparison and grading -->
+    <!-- Comparison View: Show stacked comparison and grading -->
     <div id="comparison-view" class="hidden">
       <p id="comparison-english-text" class="english-definition"></p>
-      <h2>Comparison</h2>
       <div id="comparison-grid">
-        <div class="comparison-box" id="user-answer-box">
-          <h3>Your Answer</h3>
-          <p id="user-answer" class="japanese-text"></p>
-        </div>
         <div class="comparison-box" id="correct-answer-box">
-          <h3>Correct Answer</h3>
+          <p id="correct-answer-reading" class="comparison-reading"></p>
           <p id="correct-answer" class="japanese-text"></p>
         </div>
       </div>
 
-      <!-- Reading hint (shown for all answers) -->
-      <p id="comparison-reading" class="comparison-reading"></p>
-
       <!-- Retry input (shown when answer is wrong) -->
       <div id="retry-section" class="hidden">
-        <p class="retry-prompt">Type the correct answer to continue:</p>
+        <p id="retry-prompt" class="retry-prompt">Type the correct answer to continue:</p>
         <p id="reading-hint" class="reading-hint"></p>
         <input
           type="text"
