@@ -297,8 +297,36 @@ header h1 {
   line-height: 1.5;
 }
 
-.next-btn {
+.next-row {
   margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rem-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #718096;
+  background: #edf2f7;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.rem-btn:hover {
+  background: #e2e8f0;
+  color: #e53e3e;
+}
+
+.rem-btn:active {
+  transform: scale(0.97);
+}
+
+.next-btn {
   padding: 12px 40px;
   font-size: 16px;
   font-weight: 600;

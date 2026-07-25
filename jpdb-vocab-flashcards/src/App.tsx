@@ -277,6 +277,18 @@ function App() {
     }
   }, [allCards, queue, currentIndex]);
 
+  const removeCurrentCard = useCallback(() => {
+    if (!currentCard) return;
+    const id = currentCard.id;
+    const card = allCardsRef.current.find(c => c.id === id);
+    if (!card || !card.selected) return;
+
+    setAllCards(prev => prev.map(c => c.id === id ? { ...c, selected: false } : c));
+    setQueue(q => q.filter(c => c.id !== id));
+    setCurrentIndex(0);
+    setRevealed(false);
+  }, [currentCard]);
+
   // Play a card's clips through the shared library. `awaitEnd` makes each call
   // resolve when the clip finishes, so JP/EN and repeats sequence correctly.
   // The library reassigns `src` on its single element per clip, which resets it
@@ -600,9 +612,14 @@ function App() {
               </div>
 
               {revealed && (
-                <button className="next-btn" onClick={advance} disabled={autoMode}>
-                  Next →
-                </button>
+                <div className="next-row">
+                  <button className="rem-btn" onClick={removeCurrentCard}>
+                    (rem.)
+                  </button>
+                  <button className="next-btn" onClick={advance} disabled={autoMode}>
+                    Next →
+                  </button>
+                </div>
               )}
             </>
           ) : (
